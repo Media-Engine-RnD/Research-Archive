@@ -152,30 +152,24 @@ $$
 
 ### 6. Complete Validation Function
 
-To ensure MathJax compatibility, the LaTeX algorithm is provided as a separate code block:
-
-```latex
-\begin{algorithm}
-\caption{Hand Bounding Box Validation}
-\begin{algorithmic}
-\REQUIRE $\mathcal{B}_t, \mathcal{B}_{t-1}, \mathbf{L}_t, \mathbf{C}_t$
-\ENSURE $\text{validity} \in \{0, 1\}$
-
-\STATE Compute $\mathbf{S}_t = \left( \frac{w_t}{w_{t-1}}, \frac{h_t}{h_{t-1}} \right)^T$
-\STATE Calculate $D_{\text{scale}} = \frac{|S_x - S_y|}{\frac{1}{2}(S_x + S_y)} \times 100\%$
-\STATE Evaluate $E_{\text{deform}} = 0.4 D_{\text{scale}}^2 + 0.35 (\Delta A_{\text{norm}})^2 + 0.25 \|\mathbf{v}_{\text{center}}\|^2$
-\STATE Compute $\Delta Z_{\text{sym}} = \frac{|z_{\text{MCP}_2} - z_{\text{MCP}_5}|}{\frac{1}{2}(|z_{\text{MCP}_2}| + |z_{\text{MCP}_5}|)}$
-\STATE Calculate $\bar{C}_{\text{landmark}} = \frac{1}{21} \sum_{i=1}^{21} c_i$
-
-\IF{$D_{\text{scale}} < 15\%$ AND $A_t \in [0.65, 1.85]$ AND $E_{\text{deform}} < 0.25$}
-    \IF{$\Delta Z_{\text{sym}} < 8\%$ AND $\bar{C}_{\text{landmark}} > 0.75$}
-        \RETURN $1$ \COMMENT{Valid frame}
-    \ENDIF
-\ENDIF
-\RETURN $0$ \COMMENT{Invalid frame}
-\end{algorithmic}
-\end{algorithm}
-```
+$$
+\begin{aligned}
+&\textbf{Algorithm: Hand Bounding Box Validation} \\
+&\textbf{Require:} \ \mathcal{B}_t, \mathcal{B}_{t-1}, \mathbf{L}_t, \mathbf{C}_t \\
+&\textbf{Ensure:} \ \text{validity} \in \{0, 1\} \\
+&1.\ \mathbf{S}_t \leftarrow \left( \frac{w_t}{w_{t-1}}, \frac{h_t}{h_{t-1}} \right)^{T} \\
+&2.\ D_{\text{scale}} \leftarrow \frac{|S_x - S_y|}{\frac{1}{2}(S_x + S_y)} \times 100\% \\
+&3.\ E_{\text{deform}} \leftarrow 0.4 D_{\text{scale}}^2 + 0.35 (\Delta A_{\text{norm}})^2 + 0.25 \|\mathbf{v}_{\text{center}}\|^2 \\
+&4.\ \Delta Z_{\text{sym}} \leftarrow \frac{|z_{\text{MCP}_2} - z_{\text{MCP}_5}|}{\frac{1}{2}(|z_{\text{MCP}_2}| + |z_{\text{MCP}_5}|)} \\
+&5.\ \bar{C}_{\text{landmark}} \leftarrow \frac{1}{21} \sum_{i=1}^{21} c_i \\
+&6.\ \textbf{if} \ D_{\text{scale}} < 15\% \ \land \ A_t \in [0.65, 1.85] \ \land \ E_{\text{deform}} < 0.25 \ \textbf{then} \\
+&\quad \ \ \textbf{if} \ \Delta Z_{\text{sym}} < 8\% \ \land \ \bar{C}_{\text{landmark}} > 0.75 \ \textbf{then} \\
+&\quad\quad \ \text{return} \ 1 \quad \text{(Valid frame)} \\
+&\quad \ \ \textbf{end if} \\
+&\textbf{end if} \\
+&7.\ \text{return} \ 0 \quad \text{(Invalid frame)}
+\end{aligned}
+$$
 
 7. Normalization Rationale
 The normalization schemes ensure scale-invariant and resolution-independent validation:
