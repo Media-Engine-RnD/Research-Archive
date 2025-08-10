@@ -1,7 +1,5 @@
 # Complete Mathematical Formulation: OpenCV+MediaPipe Hand Validator
 
-## Mathematical Framework with MathJax
-
 ### 1. Bounding Box Representation and Temporal Analysis
 
 The bounding box at time $t$ is defined as:
