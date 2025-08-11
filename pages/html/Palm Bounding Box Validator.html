@@ -303,20 +303,20 @@ window.MathJax = {
 
   <!-- Flow -->
   <section class="card">
-    <h2>Pipeline Flow (Conceptual)</h2>
-    <div class="mermaid">
-      graph TD
-        A[Input Frame] --> B[Compute Bounding Box \mathcal{B}_t]
-        B --> C[Compute \mathbf{S}_t (S_x, S_y)]
-        C --> D[Compute D_{scale}, \Delta A_{norm}]
-        D --> E[Deformation Energy E_{deform}]
-        E --> F[Symmetry & Depth Checks (\sigma_{ij}, \Delta Z_{sym})]
-        F --> G[Confidence Checks \bar{C}_{landmark}]
-        G --> H{All constraints satisfied?}
-        H --> |Yes| I[Return Valid (1)]
-        H --> |No| J[Return Invalid (0)]
-    </div>
-  </section>
+  <h2>Pipeline Flow (Conceptual)</h2>
+  <div class="mermaid">
+    graph TD
+      A[Input Frame] --> B[Compute Bounding Box B_t]
+      B --> C[Compute Scale Ratios Sx, Sy]
+      C --> D[Compute Scale Deviation & Aspect Ratio Change]
+      D --> E[Calculate Deformation Energy]
+      E --> F[Symmetry & Depth Checks]
+      F --> G[Confidence Checks]
+      G --> H{All constraints satisfied?}
+      H -->|Yes| I[Return Valid]
+      H -->|No| J[Return Invalid]
+  </div>
+</section>
 
   <footer class="footer">
     This document is a complete, standalone HTML translation of the Palm Bounding Box Validator mathematical specification. All formulas are display-ready (MathJax) and the flowchart is rendered via Mermaid. Adjust parameter ranges for your dataset and camera geometry as needed.
