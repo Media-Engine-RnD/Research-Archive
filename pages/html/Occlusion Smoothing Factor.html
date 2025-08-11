@@ -1,1 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Occlusion Smoothing Factor.html -->
+<title>Enhanced Hand Tracking Pipeline — Adaptive & Robust Formulation</title>
 
+<style>
+:root {
+  --bg: #f7f9fb;
+  --card: #ffffff;
+  --muted: #5e6470;
+  --accent: #305c8a;
+  --math-bg: #fdfefe;
+  --box-border: #d8dee4;
+  --soft: #e7eff7;
+}
+
+body {
+  background: var(--bg);
+  font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  margin: 0;
+  color: #1a1c1e;
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 960px;
+  margin: auto;
+  padding: 24px;
+}
+
+h1, h2, h3 {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 12px;
+  border: 1px solid var(--box-border);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.formula {
+  background: var(--math-bg);
+  border: 1px solid var(--box-border);
+  padding: 14px 16px;
+  border-radius: 8px;
+  margin: 12px 0;
+  overflow-x: auto;
+}
+
+.formula .caption {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.note {
+  background: linear-gradient(90deg, var(--card), var(--soft));
+  border-left: 4px solid var(--accent);
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin: 14px 0;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+}
+
+th, td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+th {
+  background: var(--soft);
+  color: #0f172a;
+}
+
+pre, code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;
+  font-size: 0.92rem;
+}
+
+pre {
+  background: #0f172a;
+  color: #f3f4f6;
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+</style>
+
+<!-- MathJax -->
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['\\(','\\)'], ['$', '$']],
+    displayMath: [['$$','$$'], ['\\[','\\]']]
+  },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
+
+<!-- Mermaid -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral'});</script>
+
+</head>
+<body>
+<div class="container">
+<h1>Enhanced Hand Tracking Pipeline — Adaptive and Robust Formulation</h1>
+
+<div class="card">
+<p>This pipeline improves upon standard MediaPipe-based hand tracking by:</p>
+<ul>
+<li><strong>Adaptive Smoothing Parameter</strong> \\((\\alpha)\\) — varies based on motion speed to balance stability and responsiveness.</li>
+<li><strong>Enhanced Confidence Scaling</strong> — mitigates occlusions via non-linear scaling and fallback prediction.</li>
+</ul>
+<p>All vectors are in \\(\\mathbb{R}^3\\). All constants and ranges are shown inline in each section.</p>
+</div>
+
+<div class="card">
+<h2>1. Frame Normalization</h2>
+
+<div class="formula">
+<div class="caption">Hand landmark set at time \(t\)</div>
+$$
+\\mathbf{L}_t = \\{ \\mathbf{l}_t^{(i)} \\in \\mathbb{R}^3 \\mid i=0,...,20 \\}, \quad
+\\mathbf{w}_t = \\mathbf{l}_t^{(0)}
+$$
+</div>
+
+<div class="formula">
+<div class="caption">Scale factor (wrist to palm center)</div>
+$$
+s_t = \\lVert \\mathbf{l}_t^{(9)} - \\mathbf{w}_t \\rVert
+$$
+</div>
+
+<div class="formula">
+<div class="caption">Normalized landmarks</div>
+$$
+\\hat{\\mathbf{l}}_t^{(i)} = \\frac{\\mathbf{l}_t^{(i)} - \\mathbf{w}_t}{s_t}
+$$
+</div>
+</div>
+
+<div class="card">
+<h2>2. Temporal Smoothing with Adaptive \(\\alpha\)</h2>
+
+<div class="formula">
+<div class="caption">Average displacement (motion speed proxy)</div>
+$$
+d_t = \\frac{1}{21} \\sum_{i=0}^{20} \\lVert \\hat{\\mathbf{l}}_t^{(i)} - \\hat{\\mathbf{l}}_{t-1}^{(i)} \\rVert
+$$
+</div>
+
+<div class="formula">
+<div class="caption">Adaptive smoothing factor</div>
+$$
+\\alpha_t = \\alpha_{\\min} + (\\alpha_{\\max} - \\alpha_{\\min}) \\cdot \\sigma(-\\beta d_t),\quad \\sigma(x) = \\frac{1}{1+e^{-x}}
+$$
+</div>
+
+<div class="formula">
+<div class="caption">Smoothed landmarks</div>
+$$
+\\tilde{\\mathbf{l}}_t^{(i)} = \\alpha_t \\tilde{\\mathbf{l}}_{t-1}^{(i)} + (1-\\alpha_t) \\hat{\\mathbf{l}}_t^{(i)}
+$$
+</div>
+
+<table>
+<thead><tr><th>Parameter</th><th>Meaning</th><th>Default</th></tr></thead>
+<tbody>
+<tr><td>\(\alpha_{\min}\)</td><td>Low smoothing for fast motion</td><td>0.3</td></tr>
+<tr><td>\(\alpha_{\max}\)</td><td>High smoothing for slow motion</td><td>0.8</td></tr>
+<tr><td>\(\beta\)</td><td>Sensitivity of \(\alpha_t\) to speed</td><td>10</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="card">
+<h2>3. Pose Similarity Score</h2>
+<div class="formula">
+<div class="caption">Cosine similarity, averaged over landmarks</div>
+$$
+S_t = \\frac{1}{21} \\sum_{i=0}^{20} \\frac{\\tilde{\\mathbf{l}}_t^{(i)} \\cdot \\tilde{\\mathbf{l}}_{t-1}^{(i)}}{\\lVert \\tilde{\\mathbf{l}}_t^{(i)} \\rVert \\, \\lVert \\tilde{\\mathbf{l}}_{t-1}^{(i)} \\rVert},\quad
+S_t' = \\frac{S_t+1}{2}
+$$
+</div>
+</div>
+
+<div class="card">
+<h2>4. Occlusion Heuristic Score</h2>
+<div class="formula">
+<div class="caption">Average confidence & area change</div>
+$$
+\\bar{C}_t = \\frac{1}{21} \\sum_{i=0}^{20} C_t^{(i)}, \quad
+\\Delta A_t = A_t - A_{t-1}
+$$
+</div>
+
+<div class="formula">
+<div class="caption">Occlusion score</div>
+$$
+O_t = \\sigma(\\lambda_1 \\bar{C}_t - \\lambda_2 |\\Delta A_t| + \\lambda_3 V_t)
+$$
+</div>
+
+<table>
+<thead><tr><th>Parameter</th><th>Meaning</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>\(\lambda_1\)</td><td>Weight for average confidence</td><td>5</td></tr>
+<tr><td>\(\lambda_2\)</td><td>Penalty for area change</td><td>0.1</td></tr>
+<tr><td>\(\lambda_3\)</td><td>Weight for visible landmarks count</td><td>0.5</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="card">
+<h2>5. Augmented Confidence Scaling</h2>
+<div class="formula">
+<div class="caption">Non-linear boost to base confidence \(M_t\)</div>
+$$
+M_t' = M_t^{\\gamma} + \\delta(1 - e^{-\\kappa / M_t})
+$$
+</div>
+
+<div class="formula">
+<div class="caption">Combined augmented confidence</div>
+$$
+A_t = w_1 M_t' + w_2 S_t' + w_3 O_t
+$$
+</div>
+
+<table>
+<thead><tr><th>Parameter</th><th>Meaning</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>\(\gamma\)</td><td>Compress low values</td><td>0.8</td></tr>
+<tr><td>\(\delta\)</td><td>Boost factor near zero</td><td>0.2</td></tr>
+<tr><td>\(\kappa\)</td><td>Boost sharpness</td><td>1</td></tr>
+<tr><td>\(w_1,w_2,w_3\)</td><td>Weights for confidence, similarity, occlusion</td><td>0.4, 0.4, 0.2</td></tr>
+<tr><td>\(\theta\)</td><td>Tracking threshold</td><td>0.7</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="card">
+<h2>6. Tracking Decision with Fallback</h2>
+<p>If \(A_t \geq \theta\), continue tracking; else, use predicted landmarks for up to \(k=3\) frames before reset.</p>
+</div>
+
+<div class="card">
+<h2>7. Landmark Prediction</h2>
+<div class="formula">
+<div class="caption">Velocity estimation</div>
+$$
+\\mathbf{v}_t^{(i)} = \\frac{\\tilde{\\mathbf{l}}_t^{(i)} - \\tilde{\\mathbf{l}}_{t-1}^{(i)}}{\\Delta t}
+$$
+</div>
+
+<div class="formula">
+<div class="caption">Position prediction with acceleration</div>
+$$
+\\hat{\\mathbf{l}}_{t+1}^{(i)} = \\tilde{\\mathbf{l}}_t^{(i)} + \\mathbf{v}_t^{(i)} \\Delta t + \\frac12 \\mathbf{a}_t^{(i)} (\\Delta t)^2
+$$
+</div>
+
+<div class="note">
+For more robust predictions, replace with a Kalman filter on position and velocity states.
+</div>
+</div>
+
+<div class="card">
+<h2>Pipeline Flow</h2>
+<div class="mermaid">
+graph TD
+    A[Input Frame] --> B[Frame Normalization]
+    B --> C[Adaptive Smoothing]
+    C --> D[Pose Similarity Score]
+    C --> E[Occlusion Heuristic Score]
+    D --> F[Augmented Confidence]
+    E --> F
+    F --> G{A_t >= θ?}
+    G -->|Yes| H[Continue Tracking]
+    G -->|No| I[Prediction Fallback]
+</div>
+</div>
+
+<div class="card">
+<h2>Applications</h2>
+<ul>
+<li>AR/VR gesture control</li>
+<li>Sign language translation</li>
+<li>Medical rehabilitation tracking</li>
+<li>Robotics teleoperation</li>
+<li>Gaming and entertainment</li>
+<li>Accessibility tools</li>
+</ul>
+</div>
+
+</div>
+</body>
+</html>
