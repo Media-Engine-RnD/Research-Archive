@@ -1,0 +1,14 @@
+{
+  "files": [
+    {
+      "name": "Palm Bounding Box Validator.md",
+      "type": "file",
+      "path": "docs/Palm Bounding Box Validator.md"
+    },
+    {
+      "name": "Occlusion Smoothing Factor.md", 
+      "type": "file",
+      "path": "docs/Occlusion Smoothing Factor.md"
+    }
+  ]
+}
