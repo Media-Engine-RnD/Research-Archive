@@ -1,1 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <!-- Adaptive Normalization System for Monocular Distance & Range Adjustment.html -->
+  <title>Adaptive Normalization — Monocular Distance & Range Adjustment</title>
 
+  <!-- Fonts: use readable sans-serif system stack for clarity -->
+  <style>
+    :root{
+      --bg:#f6f7f8;
+      --card:#ffffff;
+      --muted:#6b7280;
+      --accent:#2b6cb0;      /* slightly desaturated blue */
+      --soft:#e6eef9;        /* light blue for subtle highlights */
+      --box-border:#e2e8f0;  /* soft border */
+      --math-bg:#fbfdff;     /* very light background for formula box */
+    }
+    html,body{
+      height:100%;
+      margin:0;
+      font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: radial-gradient(circle at 10% 10%, #ffffff 0%, var(--bg) 60%);
+      color:#111827;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      line-height:1.5;
+    }
+
+    .container{
+      max-width:950px;
+      margin:28px auto;
+      padding:28px;
+    }
+
+    header h1{
+      margin:0 0 6px 0;
+      font-weight:600;
+      letter-spacing: -0.2px;
+      font-size:1.6rem;
+      color: #0f172a;
+    }
+    header p.lead{
+      margin:0 0 18px 0;
+      color:var(--muted);
+    }
+
+    /* Card */
+    .card{
+      background:var(--card);
+      border-radius:12px;
+      box-shadow: 0 4px 18px rgba(17,24,39,0.06);
+      padding:20px;
+      border:1px solid var(--box-border);
+      margin-bottom:18px;
+    }
+
+    /* Section titles */
+    h2{
+      font-size:1.05rem;
+      margin:12px 0;
+      color:#0b2447;
+    }
+
+    /* Formula box */
+    .formula {
+      background: linear-gradient(180deg, var(--math-bg), #ffffff);
+      border: 1px solid var(--box-border);
+      padding:14px 16px;
+      border-radius:10px;
+      margin:12px 0;
+      font-family: "Latin Modern Math", "Cambria Math", "STIX", serif;
+      color:#0b1220;
+      overflow:auto;
+    }
+    .formula .caption{
+      font-size:0.85rem;
+      color:var(--muted);
+      margin-bottom:8px;
+    }
+
+    /* Inline definitions list */
+    dl {
+      display:grid;
+      grid-template-columns: 220px 1fr;
+      gap:8px 14px;
+      align-items:start;
+      margin:8px 0 14px 0;
+    }
+    dt { color:var(--muted); font-weight:600; font-size:0.95rem; }
+    dd { margin:0; color:#111827; }
+
+    /* Tables */
+    table {
+      width:100%;
+      border-collapse:collapse;
+      margin:12px 0;
+      font-size:0.95rem;
+    }
+    th, td {
+      padding:10px 12px;
+      border-bottom:1px solid #edf2f7;
+      text-align:left;
+    }
+    th {
+      background:linear-gradient(90deg, rgba(230,238,249,0.6), rgba(250,250,250,0.6));
+      color:#0b2447;
+      font-weight:600;
+    }
+
+    /* Code */
+    pre, code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;
+      font-size:0.92rem;
+    }
+    pre {
+      background:#0f172a;
+      color:#e6eef9;
+      padding:12px;
+      border-radius:8px;
+      overflow:auto;
+      border:1px solid rgba(2,6,23,0.2);
+    }
+
+    /* Alerts */
+    .note {
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      background:linear-gradient(90deg, #ffffff, var(--soft));
+      border-left:4px solid var(--accent);
+      padding:10px 12px;
+      border-radius:8px;
+      color:#0b2447;
+      margin-bottom:12px;
+    }
+    .muted { color:var(--muted); font-size:0.95rem; }
+
+    footer { font-size:0.85rem; color:var(--muted); margin-top:18px; }
+    a { color:var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Mermaid container sizing */
+    .mermaid { margin:12px 0; border-radius:8px; background:transparent; padding:6px; }
+
+    /* small responsive tweaks */
+    @media (max-width:720px){
+      dl { grid-template-columns: 1fr; }
+      .container{ padding:16px; }
+    }
+  </style>
+
+  <!-- MathJax: use TeX-AMS_HTML with common extensions -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(','\\)'], ['$', '$']],
+        displayMath: [['$$','$$'], ['\\[','\\]']],
+        packages: {'[+]': ['ams', 'noerrors']}
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
+
+  <!-- Mermaid -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script>mermaid.initialize({startOnLoad:true, theme: 'neutral'});</script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Adaptive Normalization System — Monocular Distance &amp; Range Adjustment</h1>
+      <p class="lead">Academic-style presentation with MathJax-rendered formulas, boxed math blocks, mermaid visual, and annotated implementation notes. Source (reformatted): adaptive normalization system. :contentReference[oaicite:1]{index=1}</p>
+    </header>
+
+    <section class="card">
+      <h2>1. Normalized Deformation Value (Middle Point Convergence)</h2>
+
+      <p class="muted">We compute a normalized deformation value that blends a scale component (bounding-box diagonal ratio) with a symmetry preservation factor.</p>
+
+      <div class="formula" aria-label="Normalized deformation value">
+        <div class="caption"><strong>Normalized Deformation</strong></div>
+        $$\displaystyle \mathcal{N}_t \;=\; \tfrac{1}{2}\left[\underbrace{\dfrac{\mathrm{diag}(\mathcal{B}_t)}{\mathrm{diag}(\mathcal{B}_{\mathrm{base}})}}_{\text{Scale component}} \;+\; \underbrace{\mathcal{S}(\mathbf{L}_t)}_{\text{Symmetry component}}\right]$$
+      </div>
+
+      <dl>
+        <dt>Bounding-box diagonal</dt>
+        <dd>
+          $$\mathrm{diag}(\mathcal{B}) \;=\; \sqrt{w^2 + h^2}$$
+        </dd>
+
+        <dt>Symmetry preservation factor</dt>
+        <dd>
+          $$\displaystyle \mathcal{S}(\mathbf{L}_t) \;=\; 1 \;-\; \min\!\Bigg(1,\;\frac{1}{N}\sum_{k=1}^{N}\sigma_{ij}^{(k)}\Bigg)$$
+        </dd>
+      </dl>
+    </section>
+
+    <section class="card">
+      <h2>2. Dynamic Range Adjustment Factor</h2>
+
+      <p class="muted">A multiplicative range factor rescales thresholds based on the observed bounding-box size relative to a baseline, with a smooth distance-adaptive correction using hyperbolic tangents.</p>
+
+      <div class="formula">
+        <div class="caption"><strong>Range adjustment</strong></div>
+        $$\displaystyle \mathcal{R}_t \;=\; \frac{\lVert\mathcal{B}_{\mathrm{base}}\rVert}{\lVert\mathcal{B}_t\rVert}\cdot \Gamma_t$$
+      </div>
+
+      <div class="formula">
+        <div class="caption"><strong>Distance-adaptive correction</strong></div>
+        $$\displaystyle
+        \Gamma_t \;=\; 1 \;+\; \tfrac{1}{2}\Bigg(\tanh\!\Big(\frac{\lVert\mathcal{B}_t\rVert-\mu_{\mathcal{B}}}{2\sigma_{\mathcal{B}}}\Big)
+        - \tanh\!\Big(\frac{\lVert\mathcal{B}_{\mathrm{base}}\rVert-\mu_{\mathcal{B}}}{2\sigma_{\mathcal{B}}}\Big)\Bigg)
+        $$
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3. Integrated Processing Algorithm</h2>
+
+      <p class="muted">Algorithm rendered for clear reading — algorithmic steps are shown as display math (no code block).</p>
+
+      <div class="formula" role="group" aria-label="Adaptive Normalization algorithm">
+        <div class="caption"><strong>Algorithm: Adaptive Normalization</strong></div>
+
+        $$\begin{aligned}
+        &\textbf{Input:}\quad \mathcal{B}_t,\ \mathbf{L}_t,\ \mathcal{B}_{\mathrm{base}},\ \mu_{\mathcal{B}},\ \sigma_{\mathcal{B}} \\
+        &\textbf{Output:}\quad \mathcal{N}_t,\ \mathcal{R}_t \\[4pt]
+        &1.\quad d_t \;=\; \sqrt{w_t^2 + h_t^2} \\[4pt]
+        &2.\quad \sigma_{\text{avg}} \;=\; \frac{1}{3}\sum_{(i,j)\in P} \sigma_{ij}, \qquad
+        \mathcal{S}_t \;=\; 1 - \min(1, \sigma_{\text{avg}}) \\[4pt]
+        &3.\quad \mathcal{N}_t \;=\; \tfrac{1}{2}\left(\dfrac{d_t}{d_{\text{base}}} + \mathcal{S}_t\right) \\[4pt]
+        &4.\quad \Gamma_t \;=\; 1 \;+\; \tfrac{1}{2}\!\left(\tanh\!\Big(\dfrac{d_t-\mu_{\mathcal{B}}}{2\sigma_{\mathcal{B}}}\Big) - \tanh\!\Big(\dfrac{d_{\text{base}}-\mu_{\mathcal{B}}}{2\sigma_{\mathcal{B}}}\Big)\right) \\
+        &\qquad\quad \mathcal{R}_t \;=\; \dfrac{d_{\text{base}}}{d_t}\cdot \Gamma_t \\[4pt]
+        &5.\quad \mu_{\mathcal{B}} \leftarrow \alpha\mu_{\mathcal{B}} + (1-\alpha)d_t \\
+        &\qquad\quad \sigma_{\mathcal{B}} \leftarrow \beta\sigma_{\mathcal{B}} + (1-\beta)\lvert d_t-\mu_{\mathcal{B}}\rvert \\[4pt]
+        &6.\quad \textbf{return}\ \mathcal{N}_t,\ \mathcal{R}_t
+        \end{aligned}$$
+
+      <div class="note" style="margin-top:12px;">
+        <div>
+          <strong>Note</strong>
+          <div class="muted">Use the moving statistics update (step 5) to ensure the algorithm adapts steadily to long-term shifts in observed distances.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>4. Threshold Adaptation for Gestures</h2>
+
+      <p class="muted">Adaptive threshold uses both range factor and asymmetry compensation.</p>
+
+      <div class="formula">
+        <div class="caption"><strong>Adapted threshold</strong></div>
+        $$\displaystyle \tau_{\mathrm{adapted}} \;=\; \tau \cdot \mathcal{R}_t \cdot \big(1 + k(1 - \mathcal{S}_t)\big)$$
+
+        <div class="muted" style="margin-top:8px;">Here, \(k\) is the asymmetry compensation factor (recommended default \(k=0.2\)).</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>5. Implementation Notes</h2>
+
+      <div class="note">
+        <div>
+          <strong>Initial calibration</strong>
+          <div class="muted" style="margin-top:6px;">During the first N frames (e.g. 30), initialize baseline diagonal and moving statistics.</div>
+        </div>
+      </div>
+
+      <pre><code># During first 30 frames
+base_diag = np.median([np.linalg.norm([b.w, b.h]) for b in frames])
+mu_b = base_diag
+sigma_b = np.std([np.linalg.norm([b.w, b.h]) for b in frames])</code></pre>
+
+      <p class="muted" style="margin-top:10px;">Asymmetry compensation examples:</p>
+      <table>
+        <thead><tr><th>Symmetry \(\mathcal{S}_t\)</th><th>Interpretation</th></tr></thead>
+        <tbody>
+          <tr><td>\(\mathcal{S}_t\approx 1\)</td><td>Perfect symmetry — no compensation</td></tr>
+          <tr><td>\(\mathcal{S}_t\approx 0.8\)</td><td>Mild asymmetry — ~20% threshold relaxation</td></tr>
+          <tr><td>\(\mathcal{S}_t\approx 0.6\)</td><td>Significant asymmetry — ~40% threshold relaxation</td></tr>
+        </tbody>
+      </table>
+
+      <p class="muted">Dynamic range behavior (illustrative):</p>
+      <table>
+        <thead><tr><th>Distance</th><th>\(\mathcal{R}_t\)</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td>Very Close</td><td>0.6–0.8</td><td>Thresholds reduced 20–40%</td></tr>
+          <tr><td>Neutral</td><td>1.0</td><td>Baseline thresholds</td></tr>
+          <tr><td>Very Far</td><td>1.3–1.6</td><td>Thresholds increased 30–60%</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>6. Integration with Existing Validation</h2>
+
+      <p class="muted">Mermaid diagram below represents where the normalization enters the bilateral validation pipeline.</p>
+
+      <!-- Mermaid flowchart -->
+      <div class="mermaid">
+        graph TD
+            A[Raw Frame] --> B{Bilateral Validation}
+            B -->|Valid| C[Use raw landmarks]
+            B -->|Invalid| D[Compute 𝒩_t and 𝒮_t]
+            D --> E[Apply 𝒩_t for distance control]
+            D --> F[Apply 𝒮_t for threshold adaptation]
+            C --> G[Standard processing]
+            E --> H[Monocular distance output]
+            F --> I[Adjusted gesture thresholds]
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Key Advantages</h2>
+
+      <ol>
+        <li><strong>Zero Frame Rejection:</strong> All frames produce usable output via \(\mathcal{N}_t\); invalid frames still contribute to distance estimation.</li>
+        <li><strong>Dynamic Range Compensation:</strong> Automatic adjustment for hand distance changes; handles size and asymmetry.</li>
+        <li><strong>Stability Preservation:</strong> Smooth transitions using \(\tanh\); moving statistics mitigate sudden jumps.</li>
+        <li><strong>Backward Compatibility:</strong> Normalization layer integrates without requiring changes to core validation logic.</li>
+        <li><strong>Tunable Parameters:</strong> Adaptation speeds and compensation factors are configurable.</li>
+      </ol>
+
+      <table>
+        <thead><tr><th>Parameter</th><th>Range</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td>\(\alpha\)</td><td>0.8–0.95</td><td>Mean adaptation speed</td></tr>
+          <tr><td>\(\beta\)</td><td>0.85–0.98</td><td>Variance adaptation speed</td></tr>
+          <tr><td>\(k\)</td><td>0.1–0.3</td><td>Asymmetry compensation</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer>
+      Reformatted for clarity, with MathJax rendering and Mermaid visual. Source preserved and referenced. :contentReference[oaicite:2]{index=2}
+    </footer>
+  </div>
+</body>
+</html>
