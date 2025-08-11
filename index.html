@@ -489,7 +489,7 @@ class DocumentationHub {
       // For GitHub Pages, we'll need to maintain a manifest or discover files differently
       // This is a fallback approach using a predefined list or API
       
-      const response = await fetch(`https://api.github.com/repos/${owner}/${repoPath}/contents/docs`);
+      const response = await fetch(`https://api.github.com/repos/${owner}/${repoPath}/docs`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch documents list');
