@@ -9,8 +9,8 @@
 <script>
 window.MathJax = {
   tex: {
-    inlineMath: [['$', '$'], ['\\(', '\\)']],
-    displayMath: [['$$','$$'], ['\\[','\\]']],
+    inlineMath: [['$', '$'], ['\(', '\)']],
+    displayMath: [['$$','$$'], ['\[','\]']],
     processEscapes: true,
     processEnvironments: true,
     tags: 'ams'
@@ -34,9 +34,6 @@ window.MathJax = {
 };
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js"></script>
-
-<!-- Marked.js for markdown parsing -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.2/marked.min.js"></script>
 
 <!-- Prism.js for syntax highlighting -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
@@ -521,17 +518,9 @@ class DocumentationHub {
     this.currentDocument = null;
     this.mathJaxInitialized = false;
     
-    // Configuration - Update these for your repository
     this.config = {
-      owner: 'stdnt-c1',
-      repo: 'Archive-Test',
-      branch: 'main',
-      // Fallback file list - manually maintain this list
-      knownFiles: [
-        'OpenCV-MediaPipe-Hand-Validator.md',
-        'README.md',
-        // Add your markdown files here
-      ]
+      manifestPath: './pages/html/manifest.json',
+      basePath: './pages/html/',
     };
     
     this.init();
@@ -542,114 +531,94 @@ class DocumentationHub {
     this.setupEventListeners();
   }
   
-  // Initialize MathJax only when first needed
   async initializeMathJax() {
     if (this.mathJaxInitialized || !window.MathJax) {
       return;
     }
-    
     try {
       console.log('Initializing MathJax on-demand...');
-      
-      // Start MathJax manually
       MathJax.startup.defaultReady();
-      
-      // Wait for MathJax to be ready
       await MathJax.startup.promise;
-      
       this.mathJaxInitialized = true;
       console.log('MathJax initialized successfully');
-      
     } catch (error) {
       console.error('Failed to initialize MathJax:', error);
     }
   }
   
-  // Check if content contains math expressions
   containsMath(content) {
     const mathPatterns = [
-      /\$\$[\s\S]*?\$\$/g,    // Block math $$...$$
-      /\$[^$\n]*?\$/g,        // Inline math $...$
-      /\\\[[\s\S]*?\\\]/g,    // Block math \[...\]
-      /\\\([\s\S]*?\\\)/g     // Inline math \(...\)
+      /\$\$[\s\S]*?\$\$/g,
+      /\$[^$\n]*?\$/g,
+      /\[[\s\S]*?\]/g,
+      /\\([\s\S]*?\\)/g
     ];
-    
     return mathPatterns.some(pattern => pattern.test(content));
   }
   
   async loadDocuments() {
     try {
-      const { owner, repo, branch, knownFiles } = this.config;
-      
-      // For private repos, skip API and try manifest file or known files
-      let files = [];
-      
-      // Method 1: Try to load a manifest file from GitHub Pages
-      try {
-        // Use relative path since we're on the same GitHub Pages site
-        const manifestResponse = await fetch('./docs/manifest.json');
-        if (manifestResponse.ok) {
-          const manifest = await manifestResponse.json();
-          files = manifest.files || [];
-          console.log('Manifest loaded successfully:', files.map(f => f.name));
-        } else {
-          throw new Error(`Manifest not found: ${manifestResponse.status}`);
-        }
-      } catch (manifestError) {
-        console.warn('Manifest file not found, using known files list:', manifestError);
-        
-        // Method 2: Use known files list and verify they exist
-        files = await this.tryDirectFileAccess(owner, repo, branch, knownFiles);
+      const { manifestPath, basePath } = this.config;
+      const manifestResponse = await fetch(manifestPath);
+      if (!manifestResponse.ok) {
+        throw new Error(`Failed to fetch ${manifestPath} (${manifestResponse.status})`);
       }
       
-      const markdownFiles = files.filter(file => 
-        file.name && file.name.toLowerCase().endsWith('.md')
-      );
+      const manifest = await manifestResponse.json();
+      const files = manifest.files || [];
       
-      if (markdownFiles.length === 0) {
-        throw new Error('No markdown files found. Please update the knownFiles list or create a manifest.json');
+      const htmlFiles = files.filter(file => file.name && file.name.toLowerCase().endsWith('.html'));
+      
+      if (htmlFiles.length === 0) {
+        throw new Error('No HTML files found in the manifest.');
       }
       
-      console.log('Loading markdown files:', markdownFiles.map(f => f.name));
-      
-      // Load each markdown file
-      for (const file of markdownFiles) {
+      const docPromises = htmlFiles.map(async (file) => {
         try {
-          let content;
-          let fileUrl;
-          
-          // Use relative paths for GitHub Pages or direct raw access
-          if (window.location.hostname.includes('github.io')) {
-            // We're on GitHub Pages, use relative path
-            fileUrl = `./docs/${file.name}`;
-          } else {
-            // Fallback to raw.githubusercontent.com for testing
-            fileUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/docs/${file.name}`;
+          const fileUrl = `${basePath}${file.name}`;
+          const response = await fetch(fileUrl);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch ${fileUrl}`);
           }
           
-          console.log(`Fetching content from: ${fileUrl}`);
-          const contentResponse = await fetch(fileUrl);
+          const htmlText = await response.text();
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(htmlText, 'text/html');
           
-          if (!contentResponse.ok) {
-            throw new Error(`HTTP ${contentResponse.status}: ${contentResponse.statusText}`);
-          }
+          const article = htmlDoc.querySelector('.document-content');
+          const content = article ? article.innerHTML : '';
+
+          const title = htmlDoc.querySelector('h1')?.textContent || file.name.replace('.html', '');
+          const excerpt = htmlDoc.querySelector('p')?.textContent.substring(0, 150) + '...' || 'No description available.';
           
-          content = await contentResponse.text();
+          const lastModifiedHeader = response.headers.get('Last-Modified');
+          const lastModified = lastModifiedHeader ? new Date(lastModifiedHeader) : new Date();
           
-          const doc = await this.parseMarkdownFile(file, content);
-          this.documents.push(doc);
-          console.log(`Successfully loaded: ${file.name}`);
-          
+          const size = parseInt(response.headers.get('Content-Length')) || htmlText.length;
+
+          return {
+            name: file.name,
+            title: title,
+            excerpt: excerpt,
+            content: content,
+            lastModified: lastModified,
+            size: size,
+            path: file.path,
+            hasMath: this.containsMath(content),
+          };
         } catch (error) {
-          console.error(`Failed to load ${file.name}:`, error);
-          // Continue with other files
+          console.error(`Failed to load and parse ${file.name}:`, error);
+          return null; // Return null for failed documents
         }
-      }
-      
+      });
+
+      // Wait for all documents to be processed and filter out any that failed
+      this.documents = (await Promise.all(docPromises)).filter(doc => doc !== null);
+
       if (this.documents.length === 0) {
-        throw new Error('No documents could be loaded successfully');
+        throw new Error('No documents could be loaded successfully.');
       }
-      
+
       this.filteredDocuments = [...this.documents];
       this.renderDocuments();
       console.log(`Successfully loaded ${this.documents.length} documents`);
@@ -658,73 +627,6 @@ class DocumentationHub {
       console.error('Error loading documents:', error);
       this.showError(`Failed to load documents: ${error.message}. Check the browser console for more details.`);
     }
-  }
-  
-  async tryDirectFileAccess(owner, repo, branch, fileNames) {
-    const files = [];
-    
-    for (const fileName of fileNames) {
-      try {
-        let url;
-        
-        // Use relative path if on GitHub Pages, otherwise use raw.githubusercontent.com
-        if (window.location.hostname.includes('github.io')) {
-          url = `./docs/${fileName}`;
-        } else {
-          url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/docs/${fileName}`;
-        }
-        
-        console.log(`Checking file existence: ${url}`);
-        const response = await fetch(url, { method: 'HEAD' });
-        
-        if (response.ok) {
-          files.push({
-            name: fileName,
-            type: 'file',
-            size: parseInt(response.headers.get('content-length')) || 0,
-            path: `docs/${fileName}`,
-            download_url: url
-          });
-          console.log(`✅ Found: ${fileName}`);
-        } else {
-          console.warn(`❌ Not found: ${fileName} (${response.status})`);
-        }
-      } catch (error) {
-        console.warn(`❌ Error checking ${fileName}:`, error);
-      }
-    }
-    
-    return files;
-  }
-  
-  async parseMarkdownFile(file, content) {
-    // Extract title from first heading or filename
-    const titleMatch = content.match(/^#\s+(.+)$/m);
-    const title = titleMatch ? titleMatch[1] : file.name.replace('.md', '');
-    
-    // Extract excerpt from first paragraph
-    const paragraphMatch = content.match(/^(?!#)(.+?)(?:\n\n|\n#|$)/m);
-    const excerpt = paragraphMatch ? 
-      paragraphMatch[1].replace(/\*\*|__|\*|_/g, '').substring(0, 150) + '...' : 
-      'No description available.';
-    
-    // Get file stats
-    const lastModified = new Date(file.updated_at || Date.now());
-    
-    // Check if content contains math
-    const hasMath = this.containsMath(content);
-    
-    return {
-      name: file.name,
-      title: title,
-      excerpt: excerpt,
-      content: content,
-      lastModified: lastModified,
-      size: file.size,
-      path: file.path,
-      downloadUrl: file.download_url,
-      hasMath: hasMath
-    };
   }
   
   renderDocuments() {
@@ -744,7 +646,7 @@ class DocumentationHub {
             📅 ${this.formatDate(doc.lastModified)}
             ${doc.hasMath ? ' • 🔢 Contains Math' : ''}
           </span>
-          <span class="doc-type">Markdown</span>
+          <span class="doc-type">HTML</span>
         </div>
       </div>
     `).join('');
@@ -755,104 +657,43 @@ class DocumentationHub {
   async showDocument(fileName) {
     const doc = this.documents.find(d => d.name === fileName);
     if (!doc) return;
-    
+
     this.currentDocument = doc;
-    
-    // Update navigation
+
     document.querySelector('.back-btn').style.display = 'block';
     document.getElementById('breadcrumb-text').textContent = doc.title;
-    
-    // Hide docs list, show content viewer
+
     document.getElementById('docs-list').style.display = 'none';
-    document.getElementById('content-viewer').style.display = 'block';
+    const contentViewer = document.getElementById('content-viewer');
+    contentViewer.style.display = 'block';
     
-    // Populate content
+    const contentBody = document.getElementById('content-body');
+    contentBody.innerHTML = doc.content;
+
     document.getElementById('content-title').textContent = doc.title;
     document.getElementById('content-meta').innerHTML = `
       📅 Last updated: ${this.formatDate(doc.lastModified)} | 
       📄 ${Math.round(doc.size / 1024)}KB
       ${doc.hasMath ? ' | 🔢 Math Content' : ''}
     `;
-    
-    // Configure marked with custom renderer for better MathJax compatibility
-    const renderer = new marked.Renderer();
-    
-    // Override paragraph rendering to add tex2jax_process class
-    const originalParagraph = renderer.paragraph;
-    renderer.paragraph = function(text) {
-      return `<p class="tex2jax_process">${text}</p>`;
-    };
-    
-    // Override heading rendering to add tex2jax_process class
-    const originalHeading = renderer.heading;
-    renderer.heading = function(text, level, raw, slugger) {
-      return `<h${level} class="tex2jax_process">${text}</h${level}>`;
-    };
-    
-    // Override list item rendering
-    const originalListitem = renderer.listitem;
-    renderer.listitem = function(text) {
-      return `<li class="tex2jax_process">${text}</li>`;
-    };
-    
-    // Override table cell rendering
-    const originalTablecell = renderer.tablecell;
-    renderer.tablecell = function(content, flags) {
-      return `<${flags.header ? 'th' : 'td'} class="tex2jax_process">${content}</${flags.header ? 'th' : 'td'}>`;
-    };
-    
-    // Configure marked with custom renderer
-    marked.setOptions({
-      renderer: renderer,
-      highlight: function(code, lang) {
-        if (window.Prism && window.Prism.languages[lang]) {
-          return Prism.highlight(code, Prism.languages[lang], lang);
-        }
-        return code;
-      },
-      breaks: false,
-      gfm: true
-    });
-    
-    // Parse and render markdown
-    const htmlContent = marked.parse(doc.content);
-    const contentBody = document.getElementById('content-body');
-    contentBody.innerHTML = htmlContent;
-    contentBody.classList.add('tex2jax_process');
-    
-    // Initialize and render MathJax only if this document contains math
-    if (doc.hasMath) {
-      // Show loading indicator for math
-      const mathElements = contentBody.querySelectorAll('*');
-      mathElements.forEach(el => {
-        if (this.containsMath(el.textContent)) {
-          const indicator = document.createElement('span');
-          indicator.className = 'math-loading';
-          indicator.textContent = 'Processing math...';
-          el.appendChild(indicator);
-        }
-      });
+
+    try {
+      contentBody.classList.add('tex2jax_process');
       
-      // Initialize MathJax if needed and render math
-      await this.initializeMathJax();
-      await this.renderMathJax(contentBody);
+      if (doc.hasMath) {
+        await this.initializeMathJax();
+        await this.renderMathJax(contentBody);
+      }
       
-      // Remove loading indicators
-      contentBody.querySelectorAll('.math-loading').forEach(indicator => {
-        indicator.remove();
-      });
-    } else {
-      console.log('No math content detected, skipping MathJax rendering');
-    }
-    
-    // Re-run Prism for syntax highlighting after a small delay
-    setTimeout(() => {
       if (window.Prism) {
         Prism.highlightAllUnder(contentBody);
       }
-    }, 100);
+
+    } catch (error) {
+      console.error('Error rendering document enhancements:', error);
+      contentBody.innerHTML = `<div class="error"><h3>Error rendering document</h3><p>${error.message}</p></div>`;
+    }
     
-    // Scroll to top
     window.scrollTo(0, 0);
   }
   
@@ -861,26 +702,16 @@ class DocumentationHub {
       console.warn('MathJax is not initialized');
       return;
     }
-    
     try {
       console.log('Rendering MathJax for document content...');
-      
-      // Wait for MathJax to be ready
       await MathJax.startup.promise;
-      
-      // Clear any previous MathJax output in the element
       if (MathJax.startup.document.clear) {
         MathJax.startup.document.clear();
       }
-      
-      // Process the new content
       if (MathJax.startup.document.updateDocument) {
         MathJax.startup.document.updateDocument();
       }
-      
-      // Render math in the specific element
       await MathJax.typesetPromise([element]);
-      
       console.log('MathJax rendering complete for current document');
     } catch (error) {
       console.error('MathJax rendering error:', error);
@@ -888,14 +719,10 @@ class DocumentationHub {
   }
   
   showDocsList() {
-    // Update navigation
     document.querySelector('.back-btn').style.display = 'none';
     document.getElementById('breadcrumb-text').textContent = 'All Documents';
-    
-    // Show docs list, hide content viewer
     document.getElementById('docs-list').style.display = 'grid';
     document.getElementById('content-viewer').style.display = 'none';
-    
     this.currentDocument = null;
   }
   
@@ -914,13 +741,11 @@ class DocumentationHub {
   }
   
   setupEventListeners() {
-    // Search functionality
     const searchInput = document.getElementById('searchInput');
     searchInput.addEventListener('input', (e) => {
       this.filterDocuments(e.target.value);
     });
     
-    // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.currentDocument) {
         this.showDocsList();
@@ -945,43 +770,26 @@ class DocumentationHub {
       <div class="error">
         <h3>❌ ${message}</h3>
         <div style="margin-top: 1rem; text-align: left; background: #f8f9fa; padding: 1rem; border-radius: 8px;">
-          <strong>For Private Repository Setup:</strong>
+          <strong>Troubleshooting Steps:</strong>
           <ol style="margin: 0.5rem 0; padding-left: 1.5rem;">
-            <li><strong>Update knownFiles:</strong> Edit the <code>knownFiles</code> array in the code with your exact markdown filenames</li>
-            <li><strong>Or create manifest.json:</strong> Add a <code>docs/manifest.json</code> file (see below)</li>
-            <li><strong>Ensure GitHub Pages is enabled</strong> for your private repo</li>
-            <li><strong>Check file paths:</strong> Files must be in the <code>docs/</code> directory</li>
+            <li><strong>Check manifest.json:</strong> Ensure <code>pages/html/manifest.json</code> exists and is correctly formatted.</li>
+            <li><strong>Check file paths:</strong> HTML files listed in the manifest must be present in the <code>pages/html/</code> directory.</li>
+            <li><strong>Check browser console:</strong> Look for more detailed error messages in your browser's developer console (F12).</li>
           </ol>
           
           <details style="margin-top: 1rem;">
-            <summary style="cursor: pointer; font-weight: bold;">📁 Create docs/manifest.json (Recommended)</summary>
-            <p>Create this file in your <code>docs/</code> directory:</p>
+            <summary style="cursor: pointer; font-weight: bold;">📄 Example pages/html/manifest.json</summary>
+            <p>This file lists all the documents to be loaded.</p>
             <pre style="font-size: 0.8rem; margin: 0.5rem 0; background: #2d3748; color: #fff; padding: 1rem; border-radius: 4px;">{
   "files": [
     {
-      "name": "OpenCV-MediaPipe-Hand-Validator.md",
-      "type": "file",
-      "path": "docs/OpenCV-MediaPipe-Hand-Validator.md"
+      "name": "my-first-document.html"
     },
     {
-      "name": "README.md", 
-      "type": "file",
-      "path": "docs/README.md"
+      "name": "another-document.html"
     }
   ]
 }</pre>
-            <p><em>This approach is more maintainable and doesn't require code updates.</em></p>
-          </details>
-          
-          <details style="margin-top: 0.5rem;">
-            <summary style="cursor: pointer; font-weight: bold;">⚙️ Update knownFiles Array (Alternative)</summary>
-            <p>In the JavaScript code, find this section and update it:</p>
-            <pre style="font-size: 0.8rem; margin: 0.5rem 0; background: #2d3748; color: #fff; padding: 1rem; border-radius: 4px;">knownFiles: [
-  'OpenCV-MediaPipe-Hand-Validator.md',
-  'README.md',
-  'your-file.md',  // Add your files here
-  // Add more files as needed
-]</pre>
           </details>
         </div>
       </div>
