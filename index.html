@@ -497,39 +497,25 @@ class DocumentationHub {
     try {
       const { owner, repo, branch, knownFiles } = this.config;
       
-      // Method 1: Try GitHub API first
+      // For private repos, skip API and try manifest file or known files
       let files = [];
+      
+      // Method 1: Try to load a manifest file from GitHub Pages
       try {
-        console.log(`Trying GitHub API: https://api.github.com/repos/${owner}/${repo}/contents/docs`);
-        const apiResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/docs?ref=${branch}`);
-        
-        if (apiResponse.ok) {
-          files = await apiResponse.json();
-          console.log('GitHub API successful, found files:', files.map(f => f.name));
+        // Use relative path since we're on the same GitHub Pages site
+        const manifestResponse = await fetch('./docs/manifest.json');
+        if (manifestResponse.ok) {
+          const manifest = await manifestResponse.json();
+          files = manifest.files || [];
+          console.log('Manifest loaded successfully:', files.map(f => f.name));
         } else {
-          console.warn(`GitHub API returned ${apiResponse.status}: ${apiResponse.statusText}`);
-          throw new Error(`API returned ${apiResponse.status}`);
+          throw new Error(`Manifest not found: ${manifestResponse.status}`);
         }
-      } catch (apiError) {
-        console.warn('GitHub API failed, trying manifest file:', apiError);
+      } catch (manifestError) {
+        console.warn('Manifest file not found, using known files list:', manifestError);
         
-        // Method 2: Try to load a manifest file
-        try {
-          const manifestUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/docs/manifest.json`;
-          const manifestResponse = await fetch(manifestUrl);
-          if (manifestResponse.ok) {
-            const manifest = await manifestResponse.json();
-            files = manifest.files || [];
-            console.log('Manifest loaded successfully');
-          } else {
-            throw new Error('No manifest file');
-          }
-        } catch (manifestError) {
-          console.warn('Manifest file not found, using known files list:', manifestError);
-          
-          // Method 3: Use known files list
-          files = await this.tryDirectFileAccess(owner, repo, branch, knownFiles);
-        }
+        // Method 2: Use known files list and verify they exist
+        files = await this.tryDirectFileAccess(owner, repo, branch, knownFiles);
       }
       
       const markdownFiles = files.filter(file => 
@@ -537,7 +523,7 @@ class DocumentationHub {
       );
       
       if (markdownFiles.length === 0) {
-        throw new Error('No markdown files found in docs directory');
+        throw new Error('No markdown files found. Please update the knownFiles list or create a manifest.json');
       }
       
       console.log('Loading markdown files:', markdownFiles.map(f => f.name));
@@ -548,11 +534,12 @@ class DocumentationHub {
           let content;
           let fileUrl;
           
-          if (file.download_url) {
-            // From API response
-            fileUrl = file.download_url;
+          // Use relative paths for GitHub Pages or direct raw access
+          if (window.location.hostname.includes('github.io')) {
+            // We're on GitHub Pages, use relative path
+            fileUrl = `./docs/${file.name}`;
           } else {
-            // Direct raw.githubusercontent.com access
+            // Fallback to raw.githubusercontent.com for testing
             fileUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/docs/${file.name}`;
           }
           
@@ -594,8 +581,17 @@ class DocumentationHub {
     
     for (const fileName of fileNames) {
       try {
-        const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/docs/${fileName}`;
-        const response = await fetch(url, { method: 'HEAD' }); // Just check if file exists
+        let url;
+        
+        // Use relative path if on GitHub Pages, otherwise use raw.githubusercontent.com
+        if (window.location.hostname.includes('github.io')) {
+          url = `./docs/${fileName}`;
+        } else {
+          url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/docs/${fileName}`;
+        }
+        
+        console.log(`Checking file existence: ${url}`);
+        const response = await fetch(url, { method: 'HEAD' });
         
         if (response.ok) {
           files.push({
@@ -605,9 +601,12 @@ class DocumentationHub {
             path: `docs/${fileName}`,
             download_url: url
           });
+          console.log(`✅ Found: ${fileName}`);
+        } else {
+          console.warn(`❌ Not found: ${fileName} (${response.status})`);
         }
       } catch (error) {
-        console.warn(`File ${fileName} not accessible:`, error);
+        console.warn(`❌ Error checking ${fileName}:`, error);
       }
     }
     
@@ -761,17 +760,18 @@ class DocumentationHub {
       <div class="error">
         <h3>❌ ${message}</h3>
         <div style="margin-top: 1rem; text-align: left; background: #f8f9fa; padding: 1rem; border-radius: 8px;">
-          <strong>Troubleshooting Steps:</strong>
+          <strong>For Private Repository Setup:</strong>
           <ol style="margin: 0.5rem 0; padding-left: 1.5rem;">
-            <li>Ensure your markdown files are in the <code>docs/</code> directory</li>
-            <li>Update the <code>knownFiles</code> array in the JavaScript code with your file names</li>
-            <li>Create a <code>docs/manifest.json</code> file (optional, see below)</li>
-            <li>Check browser console for detailed error messages</li>
+            <li><strong>Update knownFiles:</strong> Edit the <code>knownFiles</code> array in the code with your exact markdown filenames</li>
+            <li><strong>Or create manifest.json:</strong> Add a <code>docs/manifest.json</code> file (see below)</li>
+            <li><strong>Ensure GitHub Pages is enabled</strong> for your private repo</li>
+            <li><strong>Check file paths:</strong> Files must be in the <code>docs/</code> directory</li>
           </ol>
+          
           <details style="margin-top: 1rem;">
-            <summary style="cursor: pointer; font-weight: bold;">📁 Create manifest.json (Optional)</summary>
-            <p>Create a file at <code>docs/manifest.json</code> with this structure:</p>
-            <pre style="font-size: 0.8rem; margin: 0.5rem 0;">{
+            <summary style="cursor: pointer; font-weight: bold;">📁 Create docs/manifest.json (Recommended)</summary>
+            <p>Create this file in your <code>docs/</code> directory:</p>
+            <pre style="font-size: 0.8rem; margin: 0.5rem 0; background: #2d3748; color: #fff; padding: 1rem; border-radius: 4px;">{
   "files": [
     {
       "name": "OpenCV-MediaPipe-Hand-Validator.md",
@@ -785,6 +785,18 @@ class DocumentationHub {
     }
   ]
 }</pre>
+            <p><em>This approach is more maintainable and doesn't require code updates.</em></p>
+          </details>
+          
+          <details style="margin-top: 0.5rem;">
+            <summary style="cursor: pointer; font-weight: bold;">⚙️ Update knownFiles Array (Alternative)</summary>
+            <p>In the JavaScript code, find this section and update it:</p>
+            <pre style="font-size: 0.8rem; margin: 0.5rem 0; background: #2d3748; color: #fff; padding: 1rem; border-radius: 4px;">knownFiles: [
+  'OpenCV-MediaPipe-Hand-Validator.md',
+  'README.md',
+  'your-file.md',  // Add your files here
+  // Add more files as needed
+]</pre>
           </details>
         </div>
       </div>
