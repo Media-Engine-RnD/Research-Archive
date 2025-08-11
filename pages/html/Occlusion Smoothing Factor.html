@@ -3,25 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Occlusion Smoothing Factor.html -->
+  <!-- Occlusion Smoothing Factor.html -->
 <title>Enhanced Hand Tracking Pipeline — Adaptive & Robust Formulation</title>
 
 <style>
 :root {
-  --bg: #f7f9fb;
+  --bg: #f8fafc;
   --card: #ffffff;
-  --muted: #5e6470;
-  --accent: #305c8a;
+  --muted: #4b5563;
+  --accent: #2563eb;
   --math-bg: #fdfefe;
-  --box-border: #d8dee4;
-  --soft: #e7eff7;
+  --box-border: #d1d5db;
+  --soft: #e5ecf6;
 }
 
 body {
   background: var(--bg);
   font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   margin: 0;
-  color: #1a1c1e;
+  color: #1f2937;
   line-height: 1.6;
 }
 
@@ -33,7 +33,7 @@ body {
 
 h1, h2, h3 {
   font-weight: 600;
-  color: #0f172a;
+  color: #111827;
 }
 
 .card {
@@ -50,8 +50,7 @@ h1, h2, h3 {
   border: 1px solid var(--box-border);
   padding: 14px 16px;
   border-radius: 8px;
-  margin: 12px 0;
-  overflow-x: auto;
+  margin: 14px 0;
 }
 
 .formula .caption {
@@ -82,7 +81,7 @@ th, td {
 
 th {
   background: var(--soft);
-  color: #0f172a;
+  color: #111827;
 }
 
 pre, code {
@@ -103,8 +102,8 @@ pre {
 <script>
 window.MathJax = {
   tex: {
-    inlineMath: [['\\(','\\)'], ['$', '$']],
-    displayMath: [['$$','$$'], ['\\[','\\]']]
+    inlineMath: [['\\(', '\\)']],
+    displayMath: [['$$', '$$']]
   },
   svg: { fontCache: 'global' }
 };
@@ -121,70 +120,71 @@ window.MathJax = {
 <h1>Enhanced Hand Tracking Pipeline — Adaptive and Robust Formulation</h1>
 
 <div class="card">
-<p>This pipeline improves upon standard MediaPipe-based hand tracking by:</p>
+<p>This enhanced pipeline introduces:</p>
 <ul>
-<li><strong>Adaptive Smoothing Parameter</strong> $(\\alpha)$ — varies based on motion speed to balance stability and responsiveness.</li>
-<li><strong>Enhanced Confidence Scaling</strong> — mitigates occlusions via non-linear scaling and fallback prediction.</li>
+<li><strong>Adaptive Smoothing</strong> \((\alpha_t)\) — dynamically adjusted for motion speed.</li>
+<li><strong>Augmented Confidence Scaling</strong> — robust to occlusions with fallback prediction.</li>
 </ul>
-<p>All vectors are in $\\mathbb{R}^3$. All constants and ranges are shown inline in each section.</p>
+<p>All vector data are in \(\mathbb{R}^3\). Parameters and rationales are embedded in each section.</p>
 </div>
 
 <div class="card">
 <h2>1. Frame Normalization</h2>
 
 <div class="formula">
-<div class="caption">Hand landmark set at time \(t\)</div>
+<div class="caption">Landmark set at time \(t\) and wrist position</div>
 $$
-\\mathbf{L}_t = \\{ \\mathbf{l}_t^{(i)} \\in \\mathbb{R}^3 \\mid i=0,...,20 \\}, \quad
-\\mathbf{w}_t = \\mathbf{l}_t^{(0)}
+\mathbf{L}_t = \{ \mathbf{l}_t^{(i)} \in \mathbb{R}^3 \mid i = 0, \dots, 20 \}, \quad
+\mathbf{w}_t = \mathbf{l}_t^{(0)}
 $$
 </div>
 
 <div class="formula">
 <div class="caption">Scale factor (wrist to palm center)</div>
 $$
-s_t = \\lVert \\mathbf{l}_t^{(9)} - \\mathbf{w}_t \\rVert
+s_t = \left\| \mathbf{l}_t^{(9)} - \mathbf{w}_t \right\|
 $$
 </div>
 
 <div class="formula">
 <div class="caption">Normalized landmarks</div>
 $$
-\\hat{\\mathbf{l}}_t^{(i)} = \\frac{\\mathbf{l}_t^{(i)} - \\mathbf{w}_t}{s_t}
+\hat{\mathbf{l}}_t^{(i)} = \frac{\mathbf{l}_t^{(i)} - \mathbf{w}_t}{s_t}
 $$
 </div>
 </div>
 
 <div class="card">
-<h2>2. Temporal Smoothing with Adaptive \(\\alpha\)</h2>
+<h2>2. Temporal Smoothing with Adaptive \(\alpha_t\)</h2>
 
 <div class="formula">
-<div class="caption">Average displacement (motion speed proxy)</div>
+<div class="caption">Motion speed proxy</div>
 $$
-d_t = \\frac{1}{21} \\sum_{i=0}^{20} \\lVert \\hat{\\mathbf{l}}_t^{(i)} - \\hat{\\mathbf{l}}_{t-1}^{(i)} \\rVert
+d_t = \frac{1}{21} \sum_{i=0}^{20} \left\| \hat{\mathbf{l}}_t^{(i)} - \hat{\mathbf{l}}_{t-1}^{(i)} \right\|
 $$
 </div>
 
 <div class="formula">
 <div class="caption">Adaptive smoothing factor</div>
 $$
-\\alpha_t = \\alpha_{\\min} + (\\alpha_{\\max} - \\alpha_{\\min}) \\cdot \\sigma(-\\beta d_t),\quad \\sigma(x) = \\frac{1}{1+e^{-x}}
+\alpha_t = \alpha_{\min} + (\alpha_{\max} - \alpha_{\min}) \cdot \sigma(-\beta \, d_t), \quad
+\sigma(x) = \frac{1}{1 + e^{-x}}
 $$
 </div>
 
 <div class="formula">
 <div class="caption">Smoothed landmarks</div>
 $$
-\\tilde{\\mathbf{l}}_t^{(i)} = \\alpha_t \\tilde{\\mathbf{l}}_{t-1}^{(i)} + (1-\\alpha_t) \\hat{\\mathbf{l}}_t^{(i)}
+\tilde{\mathbf{l}}_t^{(i)} = \alpha_t \cdot \tilde{\mathbf{l}}_{t-1}^{(i)} + (1 - \alpha_t) \cdot \hat{\mathbf{l}}_t^{(i)}
 $$
 </div>
 
 <table>
-<thead><tr><th>Parameter</th><th>Meaning</th><th>Default</th></tr></thead>
+<thead><tr><th>Parameter</th><th>Description</th><th>Default</th></tr></thead>
 <tbody>
-<tr><td>\(\alpha_{\min}\)</td><td>Low smoothing for fast motion</td><td>0.3</td></tr>
-<tr><td>\(\alpha_{\max}\)</td><td>High smoothing for slow motion</td><td>0.8</td></tr>
-<tr><td>\(\beta\)</td><td>Sensitivity of \(\alpha_t\) to speed</td><td>10</td></tr>
+<tr><td>\(\alpha_{\min}\)</td><td>Low smoothing (fast motion)</td><td>0.3</td></tr>
+<tr><td>\(\alpha_{\max}\)</td><td>High smoothing (slow motion)</td><td>0.8</td></tr>
+<tr><td>\(\beta\)</td><td>Sensitivity to speed</td><td>10</td></tr>
 </tbody>
 </table>
 </div>
@@ -192,10 +192,13 @@ $$
 <div class="card">
 <h2>3. Pose Similarity Score</h2>
 <div class="formula">
-<div class="caption">Cosine similarity, averaged over landmarks</div>
+<div class="caption">Cosine similarity, normalized to [0,1]</div>
 $$
-S_t = \\frac{1}{21} \\sum_{i=0}^{20} \\frac{\\tilde{\\mathbf{l}}_t^{(i)} \\cdot \\tilde{\\mathbf{l}}_{t-1}^{(i)}}{\\lVert \\tilde{\\mathbf{l}}_t^{(i)} \\rVert \\, \\lVert \\tilde{\\mathbf{l}}_{t-1}^{(i)} \\rVert},\quad
-S_t' = \\frac{S_t+1}{2}
+S_t = \frac{1}{21} \sum_{i=0}^{20}
+\frac{\tilde{\mathbf{l}}_t^{(i)} \cdot \tilde{\mathbf{l}}_{t-1}^{(i)}}
+{\| \tilde{\mathbf{l}}_t^{(i)} \| \, \| \tilde{\mathbf{l}}_{t-1}^{(i)} \|},
+\quad
+S_t' = \frac{S_t + 1}{2}
 $$
 </div>
 </div>
@@ -203,26 +206,26 @@ $$
 <div class="card">
 <h2>4. Occlusion Heuristic Score</h2>
 <div class="formula">
-<div class="caption">Average confidence & area change</div>
+<div class="caption">Average confidence & bounding box change</div>
 $$
-\\bar{C}_t = \\frac{1}{21} \\sum_{i=0}^{20} C_t^{(i)}, \quad
-\\Delta A_t = A_t - A_{t-1}
+\bar{C}_t = \frac{1}{21} \sum_{i=0}^{20} C_t^{(i)}, \quad
+\Delta A_t = A_t - A_{t-1}
 $$
 </div>
 
 <div class="formula">
 <div class="caption">Occlusion score</div>
 $$
-O_t = \\sigma(\\lambda_1 \\bar{C}_t - \\lambda_2 |\\Delta A_t| + \\lambda_3 V_t)
+O_t = \sigma\left( \lambda_1 \bar{C}_t - \lambda_2 |\Delta A_t| + \lambda_3 V_t \right)
 $$
 </div>
 
 <table>
-<thead><tr><th>Parameter</th><th>Meaning</th><th>Value</th></tr></thead>
+<thead><tr><th>Parameter</th><th>Description</th><th>Value</th></tr></thead>
 <tbody>
-<tr><td>\(\lambda_1\)</td><td>Weight for average confidence</td><td>5</td></tr>
+<tr><td>\(\lambda_1\)</td><td>Confidence weight</td><td>5</td></tr>
 <tr><td>\(\lambda_2\)</td><td>Penalty for area change</td><td>0.1</td></tr>
-<tr><td>\(\lambda_3\)</td><td>Weight for visible landmarks count</td><td>0.5</td></tr>
+<tr><td>\(\lambda_3\)</td><td>Visible landmarks weight</td><td>0.5</td></tr>
 </tbody>
 </table>
 </div>
@@ -230,26 +233,26 @@ $$
 <div class="card">
 <h2>5. Augmented Confidence Scaling</h2>
 <div class="formula">
-<div class="caption">Non-linear boost to base confidence \(M_t\)</div>
+<div class="caption">Non-linear boost to base confidence</div>
 $$
-M_t' = M_t^{\\gamma} + \\delta(1 - e^{-\\kappa / M_t})
+M_t' = M_t^{\gamma} + \delta \left( 1 - e^{-\kappa / M_t} \right)
 $$
 </div>
 
 <div class="formula">
-<div class="caption">Combined augmented confidence</div>
+<div class="caption">Final augmented confidence</div>
 $$
 A_t = w_1 M_t' + w_2 S_t' + w_3 O_t
 $$
 </div>
 
 <table>
-<thead><tr><th>Parameter</th><th>Meaning</th><th>Value</th></tr></thead>
+<thead><tr><th>Parameter</th><th>Description</th><th>Value</th></tr></thead>
 <tbody>
-<tr><td>\(\gamma\)</td><td>Compress low values</td><td>0.8</td></tr>
-<tr><td>\(\delta\)</td><td>Boost factor near zero</td><td>0.2</td></tr>
+<tr><td>\(\gamma\)</td><td>Compression exponent</td><td>0.8</td></tr>
+<tr><td>\(\delta\)</td><td>Boost factor</td><td>0.2</td></tr>
 <tr><td>\(\kappa\)</td><td>Boost sharpness</td><td>1</td></tr>
-<tr><td>\(w_1,w_2,w_3\)</td><td>Weights for confidence, similarity, occlusion</td><td>0.4, 0.4, 0.2</td></tr>
+<tr><td>\(w_1,w_2,w_3\)</td><td>Component weights</td><td>0.4, 0.4, 0.2</td></tr>
 <tr><td>\(\theta\)</td><td>Tracking threshold</td><td>0.7</td></tr>
 </tbody>
 </table>
@@ -257,27 +260,25 @@ $$
 
 <div class="card">
 <h2>6. Tracking Decision with Fallback</h2>
-<p>If \(A_t \geq \theta\), continue tracking; else, use predicted landmarks for up to \(k=3\) frames before reset.</p>
+<p>If \(A_t \geq \theta\): continue tracking.</p>
+<p>Else: use predicted landmarks (up to \(k=3\) frames) before reset.</p>
 </div>
 
 <div class="card">
 <h2>7. Landmark Prediction</h2>
 <div class="formula">
-<div class="caption">Velocity estimation</div>
+<div class="caption">Velocity</div>
 $$
-\\mathbf{v}_t^{(i)} = \\frac{\\tilde{\\mathbf{l}}_t^{(i)} - \\tilde{\\mathbf{l}}_{t-1}^{(i)}}{\\Delta t}
+\mathbf{v}_t^{(i)} = \frac{\tilde{\mathbf{l}}_t^{(i)} - \tilde{\mathbf{l}}_{t-1}^{(i)}}{\Delta t}
 $$
 </div>
 
 <div class="formula">
-<div class="caption">Position prediction with acceleration</div>
+<div class="caption">Prediction with acceleration</div>
 $$
-\\hat{\\mathbf{l}}_{t+1}^{(i)} = \\tilde{\\mathbf{l}}_t^{(i)} + \\mathbf{v}_t^{(i)} \\Delta t + \\frac12 \\mathbf{a}_t^{(i)} (\\Delta t)^2
+\hat{\mathbf{l}}_{t+1}^{(i)} = \tilde{\mathbf{l}}_t^{(i)} +
+\mathbf{v}_t^{(i)} \, \Delta t + \frac12 \mathbf{a}_t^{(i)} (\Delta t)^2
 $$
-</div>
-
-<div class="note">
-For more robust predictions, replace with a Kalman filter on position and velocity states.
 </div>
 </div>
 
@@ -287,8 +288,8 @@ For more robust predictions, replace with a Kalman filter on position and veloci
 graph TD
     A[Input Frame] --> B[Frame Normalization]
     B --> C[Adaptive Smoothing]
-    C --> D[Pose Similarity Score]
-    C --> E[Occlusion Heuristic Score]
+    C --> D[Pose Similarity]
+    C --> E[Occlusion Heuristic]
     D --> F[Augmented Confidence]
     E --> F
     F --> G{A_t >= θ?}
