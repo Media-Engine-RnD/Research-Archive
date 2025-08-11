@@ -472,6 +472,19 @@ class DocumentationHub {
     this.filteredDocuments = [];
     this.currentDocument = null;
     
+    // Configuration - Update these for your repository
+    this.config = {
+      owner: 'stdnt-c1',
+      repo: 'Archive-Test',
+      branch: 'main',
+      // Fallback file list - manually maintain this list
+      knownFiles: [
+        'OpenCV-MediaPipe-Hand-Validator.md',
+        'README.md',
+        // Add your markdown files here
+      ]
+    };
+    
     this.init();
   }
   
@@ -482,44 +495,123 @@ class DocumentationHub {
   
   async loadDocuments() {
     try {
-      // GitHub API endpoint for the docs directory
-      const repoPath = window.location.pathname.split('/')[1]; // Get repo name from URL
-      const owner = window.location.hostname.split('.')[0]; // Get owner from subdomain (for github.io)
+      const { owner, repo, branch, knownFiles } = this.config;
       
-      // For GitHub Pages, we'll need to maintain a manifest or discover files differently
-      // This is a fallback approach using a predefined list or API
-      
-      const response = await fetch(`https://api.github.com/repos/${owner}/${repoPath}/docs`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch documents list');
+      // Method 1: Try GitHub API first
+      let files = [];
+      try {
+        console.log(`Trying GitHub API: https://api.github.com/repos/${owner}/${repo}/contents/docs`);
+        const apiResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/docs?ref=${branch}`);
+        
+        if (apiResponse.ok) {
+          files = await apiResponse.json();
+          console.log('GitHub API successful, found files:', files.map(f => f.name));
+        } else {
+          console.warn(`GitHub API returned ${apiResponse.status}: ${apiResponse.statusText}`);
+          throw new Error(`API returned ${apiResponse.status}`);
+        }
+      } catch (apiError) {
+        console.warn('GitHub API failed, trying manifest file:', apiError);
+        
+        // Method 2: Try to load a manifest file
+        try {
+          const manifestUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/docs/manifest.json`;
+          const manifestResponse = await fetch(manifestUrl);
+          if (manifestResponse.ok) {
+            const manifest = await manifestResponse.json();
+            files = manifest.files || [];
+            console.log('Manifest loaded successfully');
+          } else {
+            throw new Error('No manifest file');
+          }
+        } catch (manifestError) {
+          console.warn('Manifest file not found, using known files list:', manifestError);
+          
+          // Method 3: Use known files list
+          files = await this.tryDirectFileAccess(owner, repo, branch, knownFiles);
+        }
       }
       
-      const files = await response.json();
       const markdownFiles = files.filter(file => 
-        file.name.toLowerCase().endsWith('.md') && file.type === 'file'
+        file.name && file.name.toLowerCase().endsWith('.md')
       );
+      
+      if (markdownFiles.length === 0) {
+        throw new Error('No markdown files found in docs directory');
+      }
+      
+      console.log('Loading markdown files:', markdownFiles.map(f => f.name));
       
       // Load each markdown file
       for (const file of markdownFiles) {
         try {
-          const contentResponse = await fetch(file.download_url);
-          const content = await contentResponse.text();
+          let content;
+          let fileUrl;
+          
+          if (file.download_url) {
+            // From API response
+            fileUrl = file.download_url;
+          } else {
+            // Direct raw.githubusercontent.com access
+            fileUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/docs/${file.name}`;
+          }
+          
+          console.log(`Fetching content from: ${fileUrl}`);
+          const contentResponse = await fetch(fileUrl);
+          
+          if (!contentResponse.ok) {
+            throw new Error(`HTTP ${contentResponse.status}: ${contentResponse.statusText}`);
+          }
+          
+          content = await contentResponse.text();
           
           const doc = await this.parseMarkdownFile(file, content);
           this.documents.push(doc);
+          console.log(`Successfully loaded: ${file.name}`);
+          
         } catch (error) {
-          console.warn(`Failed to load ${file.name}:`, error);
+          console.error(`Failed to load ${file.name}:`, error);
+          // Continue with other files
         }
+      }
+      
+      if (this.documents.length === 0) {
+        throw new Error('No documents could be loaded successfully');
       }
       
       this.filteredDocuments = [...this.documents];
       this.renderDocuments();
+      console.log(`Successfully loaded ${this.documents.length} documents`);
       
     } catch (error) {
       console.error('Error loading documents:', error);
-      this.showError('Failed to load documents. Please check if the docs/ directory exists.');
+      this.showError(`Failed to load documents: ${error.message}. Check the browser console for more details.`);
     }
+  }
+  
+  async tryDirectFileAccess(owner, repo, branch, fileNames) {
+    const files = [];
+    
+    for (const fileName of fileNames) {
+      try {
+        const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/docs/${fileName}`;
+        const response = await fetch(url, { method: 'HEAD' }); // Just check if file exists
+        
+        if (response.ok) {
+          files.push({
+            name: fileName,
+            type: 'file',
+            size: parseInt(response.headers.get('content-length')) || 0,
+            path: `docs/${fileName}`,
+            download_url: url
+          });
+        }
+      } catch (error) {
+        console.warn(`File ${fileName} not accessible:`, error);
+      }
+    }
+    
+    return files;
   }
   
   async parseMarkdownFile(file, content) {
@@ -665,8 +757,38 @@ class DocumentationHub {
   }
   
   showError(message) {
-    document.getElementById('docs-list').innerHTML = 
-      `<div class="error">❌ ${message}</div>`;
+    document.getElementById('docs-list').innerHTML = `
+      <div class="error">
+        <h3>❌ ${message}</h3>
+        <div style="margin-top: 1rem; text-align: left; background: #f8f9fa; padding: 1rem; border-radius: 8px;">
+          <strong>Troubleshooting Steps:</strong>
+          <ol style="margin: 0.5rem 0; padding-left: 1.5rem;">
+            <li>Ensure your markdown files are in the <code>docs/</code> directory</li>
+            <li>Update the <code>knownFiles</code> array in the JavaScript code with your file names</li>
+            <li>Create a <code>docs/manifest.json</code> file (optional, see below)</li>
+            <li>Check browser console for detailed error messages</li>
+          </ol>
+          <details style="margin-top: 1rem;">
+            <summary style="cursor: pointer; font-weight: bold;">📁 Create manifest.json (Optional)</summary>
+            <p>Create a file at <code>docs/manifest.json</code> with this structure:</p>
+            <pre style="font-size: 0.8rem; margin: 0.5rem 0;">{
+  "files": [
+    {
+      "name": "OpenCV-MediaPipe-Hand-Validator.md",
+      "type": "file",
+      "path": "docs/OpenCV-MediaPipe-Hand-Validator.md"
+    },
+    {
+      "name": "README.md", 
+      "type": "file",
+      "path": "docs/README.md"
+    }
+  ]
+}</pre>
+          </details>
+        </div>
+      </div>
+    `;
   }
 }
 
