@@ -1,0 +1,33 @@
+{
+  "root_repo": "https://github.com/stdnt-c1/Archive-Test/tree/main",
+  "repo_vis": "private",
+  "files": [
+    {
+      "name": "Adaptive Normalization System for Monocular Distance & Range Adjustment.html",
+      "type": "file",
+      "path": "{root_repo}/pages/html/Adaptive Normalization System for Monocular Distance & Range Adjustment.html",
+      "reference": {
+        "file": "Adaptive Normalization System for Monocular Distance & Range Adjustment.md",
+        "path": "{root_repo}/docs/Adaptive Normalization System for Monocular Distance & Range Adjustment.md"
+      }
+    },
+    {
+      "name": "Occlusion Smoothing Factor.html",
+      "type": "file",
+      "path": "{root_repo}/pages/html/Occlusion Smoothing Factor.html",
+      "reference": {
+        "file": "Occlusion Smoothing Factor.md",
+        "path": "{root_repo}/docs/Occlusion Smoothing Factor.md"
+      }
+    },
+    {
+      "name": "Palm Bounding Box Validator.html",
+      "type": "file",
+      "path": "{root_repo}/pages/html/Palm Bounding Box Validator.html",
+      "reference": {
+        "file": "Palm Bounding Box Validator.md",
+        "path": "{root_repo}/docs/Palm Bounding Box Validator.md"
+      }
+    }
+  ]
+}
