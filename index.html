@@ -1,225 +1,507 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Documentation Hub</title>
 
-<!-- MathJax (simplified startup) -->
+<!-- MathJax (kept, simplified) -->
 <script>
-window.MathJax = {
-  tex: {
-    inlineMath: [['$', '$'], ['\\(', '\\)']],
-    displayMath: [['$$','$$'], ['\\[','\\]']],
-    processEscapes: true,
-    processEnvironments: true,
-    tags: 'ams'
-  },
-  svg: { fontCache: 'global' }
-};
+  window.MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$','$$'], ['\\[','\\]']],
+      processEscapes: true,
+      processEnvironments: true,
+      tags: 'ams'
+    },
+    svg: { fontCache: 'global' }
+  };
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js" defer></script>
 
-<!-- Prism.js for syntax highlighting -->
+<!-- Prism (syntax highlighting) -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js" defer></script>
 
 <style>
-/* Keep your original styling */
-:root {
-  --primary-color: #2c3e50;
-  --secondary-color: #3498db;
-  --accent-color: #e74c3c;
-  --background-color: #f8f9fa;
-  --card-background: #ffffff;
-  --text-color: #2c3e50;
-  --border-color: #dee2e6;
-  --shadow: 0 2px 10px rgba(0,0,0,0.1);
-  --hover-shadow: 0 4px 20px rgba(0,0,0,0.15);
+:root{
+  --primary:#2c3e50; --secondary:#3498db; --accent:#e74c3c;
+  --bg:#f8f9fa; --card:#fff; --text:#2c3e50; --border:#dee2e6;
+  --shadow:0 2px 10px rgba(0,0,0,.1); --hover:0 4px 20px rgba(0,0,0,.15);
 }
-* {margin:0;padding:0;box-sizing:border-box;}
-body {font-family:'Segoe UI',Tahoma,sans-serif;line-height:1.6;color:var(--text-color);background:var(--background-color);overflow-x:hidden;}
-.container {max-width:1200px;margin:0 auto;padding:2rem;}
-.header {background:linear-gradient(135deg,var(--primary-color),var(--secondary-color));color:white;padding:3rem 0;text-align:center;margin-bottom:2rem;position:relative;overflow:hidden;}
-.header-content {position:relative;z-index:1;}
-.header h1 {font-size:2.5rem;font-weight:700;margin-bottom:0.5rem;}
-.header p {font-size:1.2rem;opacity:0.9;}
-.nav-container {background:var(--card-background);border-radius:12px;box-shadow:var(--shadow);margin-bottom:2rem;padding:1rem;display:flex;align-items:center;gap:1rem;}
-.back-btn {background:var(--secondary-color);color:white;border:none;padding:0.75rem 1.5rem;border-radius:8px;cursor:pointer;font-weight:600;display:none;}
-.search-input {padding:0.75rem 1rem;border:2px solid var(--border-color);border-radius:8px;font-size:1rem;width:300px;}
-.main-content {display:grid;grid-template-columns:1fr;gap:2rem;}
-.docs-grid {display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:1.5rem;}
-.doc-card {background:var(--card-background);border-radius:12px;box-shadow:var(--shadow);padding:1.5rem;cursor:pointer;transition:all 0.3s;}
-.doc-card:hover {transform:translateY(-5px);box-shadow:var(--hover-shadow);}
-.doc-title {font-size:1.3rem;font-weight:700;color:var(--primary-color);margin-bottom:0.5rem;}
-.doc-excerpt {color:#666;font-size:0.95rem;margin-bottom:1rem;}
-.doc-meta {display:flex;justify-content:space-between;font-size:0.85rem;color:#888;}
-.content-viewer {display:none;background:var(--card-background);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;}
-.content-header {background:linear-gradient(135deg,#f8f9fa,#e9ecef);padding:2rem;border-bottom:1px solid var(--border-color);}
-.content-title {font-size:2rem;font-weight:700;color:var(--primary-color);}
-.content-meta {color:#666;font-size:1rem;}
-iframe.doc-frame {width:100%;height:80vh;border:none;}
-.loading, .error, .no-docs {text-align:center;padding:4rem 2rem;color:#666;}
-.loading::after {content:'';display:inline-block;width:2rem;height:2rem;border:3px solid #f3f3f3;border-top:3px solid var(--secondary-color);border-radius:50%;animation:spin 1s linear infinite;margin-left:1rem;}
-@keyframes spin {0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family: "Segoe UI", Roboto, system-ui, -apple-system, sans-serif; color:var(--text); background:var(--bg); line-height:1.6;}
+.container{max-width:1200px;margin:0 auto;padding:2rem;}
+.header{background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;padding:3rem 0;text-align:center;border-radius:10px;}
+.header h1{font-size:2rem;display:inline-flex;align-items:center;gap:.6rem;}
+.header p{opacity:.9;margin-top:.25rem;}
+.nav{display:flex;gap:1rem;background:var(--card);padding:1rem;border-radius:12px;align-items:center;box-shadow:var(--shadow);margin-top:1.25rem;margin-bottom:1.5rem;}
+.breadcrumb{flex:1;color:#555;font-weight:600}
+.back-btn{display:none;background:var(--secondary);color:#fff;border:none;padding:.6rem 1rem;border-radius:8px;cursor:pointer}
+.search{width:300px}
+.search input{width:100%;padding:.6rem;border-radius:8px;border:2px solid var(--border)}
+.main{display:grid;gap:1.25rem}
+.docs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem}
+.card{background:var(--card);padding:1.25rem;border-radius:12px;box-shadow:var(--shadow);cursor:pointer;transition:transform .18s}
+.card:hover{transform:translateY(-6px);box-shadow:var(--hover)}
+.title{font-weight:700;color:var(--primary);margin-bottom:.5rem}
+.excerpt{color:#666;font-size:.95rem;margin-bottom:.75rem}
+.meta{display:flex;justify-content:space-between;color:#888;font-size:.85rem;align-items:center}
+.viewer{display:none;background:var(--card);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+.viewer .head{padding:1.25rem;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#fafafa,#f0f3f7)}
+.viewer .head h2{margin:0;font-size:1.25rem;color:var(--primary)}
+.viewer .body{padding:1rem}
+iframe.doc-frame{width:100%;height:72vh;border:0}
+.loading, .error, .no-docs{padding:3rem;text-align:center;color:#666}
+.icon-inline{height:1rem;vertical-align:middle;margin-right:.4rem}
+@media (max-width:768px){ .search{width:100%}.docs-grid{grid-template-columns:1fr} .header h1{font-size:1.5rem} }
 </style>
 </head>
 <body>
 
-<header class="header">
-  <div class="container">
-    <div class="header-content">
-      <h1>
-        <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/Document_icon.svg" alt="Docs" style="height:1.2em;vertical-align:middle;margin-right:0.5em;">
-        Documentation Hub
-      </h1>
-      <p>Explore our comprehensive documentation library</p>
+<div class="container">
+  <header class="header">
+    <h1>
+      <img id="header-icon" src="" alt="docs icon" style="height:1.2em;vertical-align:middle">
+      Documentation Hub
+    </h1>
+    <p>Embedded viewer — open files inline (no new tabs)</p>
+  </header>
+
+  <div class="nav" role="navigation">
+    <button class="back-btn" id="backBtn">Back</button>
+    <div class="breadcrumb" id="breadcrumb">All Documents</div>
+    <div class="search" style="max-width:420px">
+      <input id="search" placeholder="Search documents…">
     </div>
   </div>
-</header>
 
-<div class="container">
-  <nav class="nav-container">
-    <button class="back-btn" onclick="app.showDocsList()">← Back to Documents</button>
-    <div class="breadcrumb"><span id="breadcrumb-text">All Documents</span></div>
-    <input type="text" class="search-input" placeholder="Search documents..." id="searchInput">
-  </nav>
+  <main class="main">
+    <section id="docsList" class="docs-grid">
+      <div class="loading">Loading documents…</div>
+    </section>
 
-  <main class="main-content">
-    <div id="docs-list" class="docs-grid"><div class="loading">Loading documents...</div></div>
-    <div id="content-viewer" class="content-viewer">
-      <div class="content-header">
-        <h1 class="content-title" id="content-title"></h1>
-        <div class="content-meta" id="content-meta"></div>
+    <section id="viewer" class="viewer" aria-hidden="true">
+      <div class="head">
+        <h2 id="viewerTitle"></h2>
+        <div id="viewerMeta" style="color:#666;font-size:.95rem;margin-top:.35rem"></div>
       </div>
-      <div class="content-body" id="content-body"></div>
-    </div>
+      <div class="body" id="viewerBody"></div>
+    </section>
   </main>
 </div>
 
 <script>
-class DocumentationHub {
-  constructor() {
-    this.documents = [];
-    this.filteredDocuments = [];
-    this.currentDocument = null;
-    this.init();
-  }
+/*
+  Robust Documentation Hub
+  - Tries multiple manifest paths (local ./pages/html/manifest.json, ./manifest.json, /manifest.json)
+  - Resolves {root_repo} -> raw.githubusercontent.com (if the manifest uses that pattern)
+  - Tries multiple candidate URLs per file (local paths, raw GitHub, githack fallback)
+  - Fetches HTML text, injects <base href="..."> so relative assets load, then creates a blob URL and sets iframe.src to that blob (same-origin)
+  - Uses stable icon CDN URLs (see comments below)
+*/
 
-  async init() {
-    await this.loadDocuments();
-    this.setupEvents();
-  }
+/* ---------- ICONS (stable CDN) ---------- */
+/* Using @svg-icons/heroicons-outline package via jsDelivr (mirrors unpkg). These icons are actively published and suitable for UI. */
+const ICON_BASE = 'https://cdn.jsdelivr.net/npm/@svg-icons/heroicons-outline@1.50.0/';
+const ICONS = {
+  doc: ICON_BASE + 'document-text.svg',         // document icon
+  calendar: ICON_BASE + 'calendar.svg',         // calendar/date
+  math: ICON_BASE + 'calculator.svg',           // math/calculator
+  error: ICON_BASE + 'exclamation-circle.svg'   // error/alert
+};
+/* If these fail, the UI will degrade to text labels. */
 
-  parseManifestPath(path, rootRepo) {
-    return path.replace(/{root_repo}/g, rootRepo)
-               .replace('tree/main', 'raw/main');
-  }
+/* ---------- small helpers ---------- */
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
 
-  async fetchWithFallback(paths) {
-    for (const url of paths) {
-      try {
-        const res = await fetch(url);
-        if (res.ok) return res;
-      } catch {}
-    }
-    throw new Error('All fetch attempts failed.');
-  }
+function isAbsolute(url) {
+  return /^(?:[a-z]+:)?\/\//i.test(url) || url.startsWith('data:');
+}
 
-  async loadDocuments() {
-    try {
-      const manifestRes = await fetch('./pages/html/manifest.json');
-      const manifest = await manifestRes.json();
-      const rootRepo = manifest.root_repo || '';
-      const files = manifest.files || [];
+function formatBytes(n){
+  if(!n) return '0 KB';
+  return (n/1024).toFixed(1)+' KB';
+}
 
-      const htmlFiles = files.filter(f => f.name.toLowerCase().endsWith('.html'));
-
-      this.documents = await Promise.all(htmlFiles.map(async file => {
-        const possibleUrls = [
-          this.parseManifestPath(file.path, rootRepo),
-          this.parseManifestPath(file.path, rootRepo).replace('raw/main', 'raw/HEAD')
-        ];
-        try {
-          const res = await this.fetchWithFallback(possibleUrls);
-          const htmlText = await res.text();
-          const parser = new DOMParser();
-          const htmlDoc = parser.parseFromString(htmlText, 'text/html');
-          const title = htmlDoc.querySelector('h1')?.textContent || file.name;
-          const excerpt = htmlDoc.querySelector('p')?.textContent?.slice(0,150)+'...' || 'No description.';
-          return {name:file.name, title, excerpt, url:possibleUrls[0]};
-        } catch {
-          return null;
-        }
-      }));
-
-      this.documents = this.documents.filter(Boolean);
-      this.filteredDocuments = [...this.documents];
-      this.renderDocs();
-
-    } catch (e) {
-      document.getElementById('docs-list').innerHTML = `<div class="error">Error loading documents: ${e.message}</div>`;
-    }
-  }
-
-  renderDocs() {
-    const list = document.getElementById('docs-list');
-    if (!this.filteredDocuments.length) {
-      list.innerHTML = '<div class="no-docs">No documents found.</div>';
-      return;
-    }
-    list.innerHTML = this.filteredDocuments.map(doc => `
-      <div class="doc-card" onclick="app.showDocument('${doc.name}')">
-        <h3 class="doc-title">${doc.title}</h3>
-        <p class="doc-excerpt">${doc.excerpt}</p>
-        <div class="doc-meta">
-          <span>
-            <img src="https://upload.wikimedia.org/wikipedia/commons/8/8a/Calendar_icon.svg" style="height:1em;vertical-align:middle;"> Date Unknown
-          </span>
-          <span>HTML</span>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  showDocument(name) {
-    const doc = this.documents.find(d => d.name === name);
-    if (!doc) return;
-    this.currentDocument = doc;
-    document.querySelector('.back-btn').style.display = 'block';
-    document.getElementById('breadcrumb-text').textContent = doc.title;
-    document.getElementById('docs-list').style.display = 'none';
-    document.getElementById('content-viewer').style.display = 'block';
-    const contentBody = document.getElementById('content-body');
-    contentBody.innerHTML = `<iframe class="doc-frame" src="${doc.url}"></iframe>`;
-    document.getElementById('content-title').textContent = doc.title;
-    document.getElementById('content-meta').textContent = 'Source: Embedded Document';
-  }
-
-  showDocsList() {
-    document.querySelector('.back-btn').style.display = 'none';
-    document.getElementById('breadcrumb-text').textContent = 'All Documents';
-    document.getElementById('docs-list').style.display = 'grid';
-    document.getElementById('content-viewer').style.display = 'none';
-    this.currentDocument = null;
-  }
-
-  filterDocs(query) {
-    query = query.toLowerCase();
-    this.filteredDocuments = this.documents.filter(d => 
-      d.title.toLowerCase().includes(query) || d.excerpt.toLowerCase().includes(query)
-    );
-    this.renderDocs();
-  }
-
-  setupEvents() {
-    document.getElementById('searchInput').addEventListener('input', e => this.filterDocs(e.target.value));
+/* Build candidate raw GitHub URL from a github.com tree/blob URL:
+   Example:
+     https://github.com/owner/repo/tree/main  -> https://raw.githubusercontent.com/owner/repo/main
+     https://github.com/owner/repo/blob/main/path -> https://raw.githubusercontent.com/owner/repo/main/path
+*/
+function githubToRaw(url){
+  try{
+    const m = url.match(/github\.com\/([^\/]+)\/([^\/]+)\/(tree|blob)\/([^\/]+)(\/(.*))?/i);
+    if(!m) return null;
+    const owner = m[1], repo = m[2], branch = m[4];
+    const rest = m[6] || '';
+    return `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${rest}`.replace(/\/+$/,'');
+  }catch(e){
+    return null;
   }
 }
 
-const app = new DocumentationHub();
-</script>
+/* try fetching sequentially */
+async function fetchFirst(urls, init){
+  for(const u of urls){
+    try{
+      const res = await fetch(u, init);
+      if(res && res.ok) return {res, url:u};
+    }catch(e){
+      // continue to next
+    }
+  }
+  throw new Error('All fetch attempts failed');
+}
 
+/* determine "base" (directory) for a file URL */
+function baseFor(url){
+  try{
+    const u = new URL(url);
+    u.hash = ''; u.search = '';
+    u.pathname = u.pathname.replace(/[^\/]*$/,''); // drop filename
+    return u.href;
+  }catch(e){
+    // fallback: use origin + '/'
+    return window.location.origin + '/';
+  }
+}
+
+/* contains simple math detection */
+function containsMath(content){
+  if(!content) return false;
+  return /\$\$[\s\S]*?\$\$|\$[^$\n]+\$|\\\(|\\\)|\\\[|\\\]|\\begin\{/.test(content);
+}
+
+/* insert <base href="..."> so relative resources inside the loaded HTML resolve properly */
+function injectBaseAndSerialize(htmlText, baseUrl){
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlText, 'text/html');
+
+  // ensure head exists
+  if(!doc.head) {
+    const head = doc.createElement('head');
+    doc.documentElement.insertBefore(head, doc.documentElement.firstChild);
+  }
+
+  // insert or replace <base>
+  let existingBase = doc.head.querySelector('base');
+  if(existingBase){
+    existingBase.setAttribute('href', baseUrl);
+  } else {
+    const baseEl = doc.createElement('base');
+    baseEl.setAttribute('href', baseUrl);
+    doc.head.insertBefore(baseEl, doc.head.firstChild || null);
+  }
+
+  // optional: make external links open in new tab for safety
+  doc.querySelectorAll('a[href]').forEach(a => {
+    try {
+      const href = a.getAttribute('href');
+      if(href && !href.startsWith('#') && !href.startsWith('mailto:') && !isAbsolute(href)){
+        // relative links will resolve against base; keep them as-is
+      } else {
+        // if external, open new window
+        if(isAbsolute(href)) {
+          a.setAttribute('target','_blank');
+          a.setAttribute('rel','noopener noreferrer');
+        }
+      }
+    } catch(e){}
+  });
+
+  const serializer = new XMLSerializer();
+  const serialized = '<!doctype html>\n' + serializer.serializeToString(doc);
+  return serialized;
+}
+
+/* ---------- Main app ---------- */
+class DocHub {
+  constructor(){
+    this.documents = [];
+    this.filtered = [];
+    this.current = null;
+    this.currentBlob = null;
+    this.init();
+  }
+
+  async init(){
+    // set header icon (graceful: browser will show alt text if fetch fails)
+    $('#header-icon').src = ICONS.doc;
+
+    // load manifest (try multiple sensible paths)
+    const manifestCandidates = [
+      './pages/html/manifest.json',
+      './manifest.json',
+      '/pages/html/manifest.json',
+      '/manifest.json'
+    ];
+
+    let manifest = null;
+    for(const m of manifestCandidates){
+      try{
+        const r = await fetch(m);
+        if(r.ok){
+          manifest = await r.json();
+          console.log('Loaded manifest from:', m);
+          break;
+        }
+      }catch(e){}
+    }
+
+    if(!manifest){
+      // no local manifest found — show instructions and bail
+      $('#docsList').innerHTML = `
+        <div class="error">
+          <strong>Manifest not found.</strong>
+          <div style="margin-top:.6rem;color:#444">Tried: <code>./pages/html/manifest.json</code>, <code>./manifest.json</code>, and root variants.</div>
+          <div style="margin-top:.8rem;color:#666">If your manifest lives in a GitHub repo (manifest.root_repo present), the loader will also attempt to resolve file paths against that repo — see the console for details.</div>
+        </div>
+      `;
+      return;
+    }
+
+    // if manifest.root_repo is a github URL like "https://github.com/owner/repo/tree/main",
+    // we'll use githubToRaw to map {root_repo} placeholders into raw.githubusercontent links.
+    this.manifest = manifest;
+    await this.loadFilesFromManifest(manifest);
+    this.setupUI();
+  }
+
+  async loadFilesFromManifest(manifest){
+    const files = Array.isArray(manifest.files) ? manifest.files : [];
+    if(files.length === 0){
+      $('#docsList').innerHTML = '<div class="no-docs">No files listed in manifest.json</div>';
+      return;
+    }
+
+    const docs = [];
+
+    for(const file of files){
+      // build candidate URLs per-file
+      const candidates = [];
+
+      // if file.path exists and contains {root_repo} replace it using root_repo
+      if(file.path && manifest.root_repo && file.path.includes('{root_repo}')){
+        // convert manifest.root_repo (github.com/.../tree/... ) to raw base if possible
+        const rawBase = githubToRaw(manifest.root_repo);
+        if(rawBase){
+          candidates.push( file.path.replace('{root_repo}', rawBase) );
+        }
+        // also try the literal replacement as a fallback (some manifests already contain full http URL)
+        candidates.push( file.path.replace('{root_repo}', manifest.root_repo) );
+      } else if(file.path && isAbsolute(file.path)) {
+        // if path is full URL
+        candidates.push(file.path);
+        // if it's a GitHub web URL with /blob/ or /tree/, try converting to raw
+        if(file.path.includes('github.com')) {
+          const raw = githubToRaw(file.path);
+          if(raw) candidates.unshift(raw);
+        }
+      } else {
+        // local path attempts using file.name (encode spaces)
+        if(file.name){
+          const encoded = encodeURIComponent(file.name).replace(/%20/g, '%20');
+          candidates.push(`./pages/html/${encoded}`);
+          candidates.push(`./${encoded}`);
+          candidates.push(`/pages/html/${encoded}`);
+          candidates.push(`/files/${encoded}`);
+        }
+      }
+
+      // If manifest.root_repo exists but file.path is missing, attempt raw.github mapping for pages/html/<name>
+      if(candidates.length === 0 && manifest.root_repo && file.name){
+        const rawBase = githubToRaw(manifest.root_repo);
+        if(rawBase){
+          candidates.push(`${rawBase}/pages/html/${encodeURIComponent(file.name)}`);
+          candidates.push(`${rawBase}/${encodeURIComponent(file.name)}`);
+        }
+      }
+
+      // also attempt github "raw" + githack fallback for pages/html/<name> if we have repo info
+      if(manifest.root_repo && file.name){
+        const rawBase = githubToRaw(manifest.root_repo);
+        if(rawBase){
+          // raw.githubusercontent first, then raw.githack (useful for executing HTML properly)
+          candidates.push(`${rawBase}/pages/html/${encodeURIComponent(file.name)}`);
+          // raw.githack works as an alternate host for raw content (runs HTML well)
+          const gh = file.path && file.path.includes('github.com') ? githubToRaw(file.path) : rawBase;
+          if(gh){
+            // convert raw.githubusercontent -> raw.githack equivalent:
+            // raw.githack.com/owner/repo/branch/path
+            const parts = gh.match(/raw\.githubusercontent\.com\/(.+)\/(.+)\/(.+)\/(.*)/) ||
+                          gh.match(/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\/([^\/]+)(.*)/);
+            // simpler: convert known pattern by replacing raw.githubusercontent with raw.githack
+            candidates.push( String(gh).replace('https://raw.githubusercontent.com', 'https://raw.githack.com') + `/pages/html/${encodeURIComponent(file.name)}`);
+          }
+        }
+      }
+
+      // remove duplicates and keep order
+      const uniq = Array.from(new Set(candidates));
+
+      // try fetching the first reachable candidate and store the successful HTML text
+      try{
+        const {res, url} = await fetchFirst(uniq.map(u => u));
+        const text = await res.text();
+        // pick title/excerpt from HTML if possible
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'text/html');
+        const title = (doc.querySelector('h1')?.textContent || file.name || 'Untitled').trim();
+        const excerpt = (doc.querySelector('p')?.textContent?.slice(0,150) + '...') || '';
+        const lastModifiedHeader = res.headers.get('Last-Modified');
+        const lastModified = lastModifiedHeader ? new Date(lastModifiedHeader) : new Date();
+        const sizeHeader = res.headers.get('Content-Length');
+        const size = sizeHeader ? parseInt(sizeHeader,10) : text.length;
+
+        docs.push({
+          name: file.name,
+          title,
+          excerpt,
+          url,       // resolved URL (used as base for relative assets)
+          htmlText: text,
+          lastModified,
+          size,
+          hasMath: containsMath(text)
+        });
+      }catch(e){
+        console.warn('Could not load file:', file.name, uniq, e);
+        // keep a failed placeholder so user sees it but can inspect console
+        docs.push({
+          name: file.name,
+          title: file.name,
+          excerpt: 'Failed to fetch (check console).',
+          url: null,
+          htmlText: null,
+          failed: true
+        });
+      }
+    }
+
+    this.documents = docs;
+    this.filtered = docs.slice();
+    this.renderList();
+  }
+
+  renderList(){
+    const container = $('#docsList');
+    if(!this.filtered.length){
+      container.innerHTML = '<div class="no-docs">No documents found</div>';
+      return;
+    }
+
+    container.innerHTML = this.filtered.map(d => {
+      const safeTitle = d.title ? d.title.replace(/</g,'&lt;') : d.name;
+      const excerpt = d.excerpt ? d.excerpt.replace(/</g,'&lt;') : '';
+      const metaDate = d.lastModified ? new Date(d.lastModified).toLocaleDateString() : '—';
+      const size = d.size ? formatBytes(d.size) : '';
+      const mathBadge = d.hasMath ? ' • math' : '';
+      const disabled = d.failed ? 'opacity:0.6;' : '';
+      return `
+        <article class="card" style="${disabled}" data-name="${encodeURIComponent(d.name || '')}">
+          <div class="title"><img class="icon-inline" src="${ICONS.doc}" alt="doc">${safeTitle}</div>
+          <div class="excerpt">${excerpt || '<i>No excerpt</i>'}</div>
+          <div class="meta">
+            <div><img class="icon-inline" src="${ICONS.calendar}" alt="date">${metaDate}${mathBadge}</div>
+            <div>${size || 'HTML'}</div>
+          </div>
+        </article>
+      `;
+    }).join('');
+
+    // attach click handlers
+    $$('.card').forEach(card => card.addEventListener('click', (e)=>{
+      const name = decodeURIComponent(card.dataset.name || '');
+      const doc = this.documents.find(x=>x.name === name);
+      if(doc) this.openDocument(doc);
+    }));
+  }
+
+  async openDocument(doc){
+    if(!doc) return;
+    $('#backBtn').style.display = 'inline-block';
+    $('#breadcrumb').textContent = doc.title || doc.name;
+    $('#docsList').style.display = 'none';
+    $('#viewer').style.display = 'block';
+    $('#viewer').setAttribute('aria-hidden','false');
+    $('#viewerTitle').textContent = doc.title || doc.name;
+    $('#viewerMeta').textContent = doc.fail ? 'Failed to load (see console)' : `Source: ${doc.url ? doc.url : 'local manifest'}`;
+
+    // revoke old blob if any
+    if(this.currentBlob){
+      try{ URL.revokeObjectURL(this.currentBlob); }catch(e){}
+      this.currentBlob = null;
+    }
+
+    // if we have htmlText, prepare it: inject <base href="..."> and create blob URL
+    if(doc.htmlText && doc.url){
+      try{
+        const base = baseFor(doc.url);
+        const serialized = injectBaseAndSerialize(doc.htmlText, base);
+        const blob = new Blob([serialized], {type: 'text/html'});
+        const blobUrl = URL.createObjectURL(blob);
+        this.currentBlob = blobUrl;
+
+        // embed iframe pointing to blob url
+        $('#viewerBody').innerHTML = `<iframe class="doc-frame" src="${blobUrl}"></iframe>`;
+
+        // optionally initialize MathJax in the iframe (if same-origin, we could), but since iframe is same-origin (blob), MathJax in parent won't automatically typeset it.
+        // so to keep it simple we leave the document as-is; user can open in a new tab if needed.
+
+      }catch(e){
+        console.error('Error preparing HTML blob:', e);
+        $('#viewerBody').innerHTML = `<div class="error">Failed to prepare document for embedding. See console for details.</div>`;
+      }
+    } else if(doc.url){
+      // last resort (no html text cached): try to embed remote URL directly
+      $('#viewerBody').innerHTML = `<iframe class="doc-frame" src="${doc.url}"></iframe>`;
+    } else {
+      $('#viewerBody').innerHTML = `<div class="error">Document has no accessible URL. Check the manifest and console for details.</div>`;
+    }
+
+    // scroll to top
+    window.scrollTo({top:0,behavior:'smooth'});
+    this.current = doc;
+  }
+
+  showList(){
+    // revoke blob url to free memory
+    if(this.currentBlob){ try{ URL.revokeObjectURL(this.currentBlob); }catch(e){} this.currentBlob = null; }
+    this.current = null;
+    $('#viewer').style.display = 'none';
+    $('#viewer').setAttribute('aria-hidden','true');
+    $('#docsList').style.display = 'grid';
+    $('#breadcrumb').textContent = 'All Documents';
+    $('#backBtn').style.display = 'none';
+  }
+
+  setupUI(){
+    // back button
+    $('#backBtn').addEventListener('click', ()=>this.showList());
+
+    // search
+    $('#search').addEventListener('input', (e)=>{
+      const q = (e.target.value || '').toLowerCase().trim();
+      this.filtered = this.documents.filter(d => {
+        return (d.title && d.title.toLowerCase().includes(q)) ||
+               (d.excerpt && d.excerpt.toLowerCase().includes(q)) ||
+               (d.name && d.name.toLowerCase().includes(q));
+      });
+      this.renderList();
+    });
+
+    // keyboard shortcuts
+    document.addEventListener('keydown', (ev)=>{
+      if(ev.key === 'Escape' && this.current) this.showList();
+      if((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k'){ ev.preventDefault(); $('#search').focus(); }
+    });
+  }
+}
+
+const app = new DocHub();
+</script>
 </body>
 </html>
