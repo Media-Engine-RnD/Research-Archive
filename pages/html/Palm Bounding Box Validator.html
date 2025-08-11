@@ -1,1 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Palm Bounding Box Validator.html -->
+<title>Palm Bounding Box Validator — Mathematical Formulation</title>
 
+<style>
+:root{
+  --bg: #f6f8fb;
+  --card: #ffffff;
+  --muted: #5b6470;
+  --accent: #2f5f8a;
+  --math-bg: #fbfdff;
+  --box-border: #d7dde6;
+  --soft: #e9f1f8;
+  --shadow: rgba(15, 23, 42, 0.06);
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;
+  --ui: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+html,body{height:100%;margin:0;background:var(--bg);font-family:var(--ui);color:#0f172a;-webkit-font-smoothing:antialiased}
+.container{max-width:980px;margin:28px auto;padding:24px}
+.header{display:flex;flex-direction:column;gap:6px;margin-bottom:18px}
+h1{margin:0;font-size:1.45rem;font-weight:700;color:#0b1624}
+.lead{margin:0;color:var(--muted);font-size:0.95rem}
+
+.card{background:var(--card);border-radius:12px;border:1px solid var(--box-border);box-shadow:0 8px 24px var(--shadow);padding:18px;margin-bottom:18px}
+h2{margin:0 0 10px 0;font-size:1.05rem;color:#0b2036}
+p.lead{color:var(--muted);margin:6px 0 12px 0}
+
+.formula{
+  background:linear-gradient(180deg,var(--math-bg),#ffffff);
+  border:1px solid var(--box-border);
+  padding:14px 16px;border-radius:10px;margin:12px 0;
+  font-family: "Cambria Math", "Latin Modern Math", serif;
+  color:#0b1220;
+  overflow:auto;
+}
+.formula .caption{font-size:0.86rem;color:var(--muted);margin-bottom:8px}
+
+.note{
+  display:block;padding:12px 14px;border-radius:10px;
+  background:linear-gradient(90deg,var(--card),var(--soft));
+  border-left:4px solid var(--accent);
+  color:#0b2036;margin:12px 0;
+}
+
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:0.95rem}
+th,td{padding:10px 12px;border-bottom:1px solid #eef2f6;text-align:left}
+th{background:var(--soft);color:#0b2036;font-weight:600}
+
+pre,code{font-family:var(--mono);font-size:0.92rem}
+.small{font-size:0.90rem;color:var(--muted)}
+
+.mermaid{margin:12px 0;border-radius:8px;padding:6px}
+.footer{margin-top:18px;color:var(--muted);font-size:0.88rem}
+@media (max-width:720px){.container{padding:16px}}
+</style>
+
+<!-- MathJax -->
+<script>
+window.MathJax = {
+  tex: {
+    inlineMath: [['\\(','\\)'], ['$', '$']],
+    displayMath: [['$$','$$'], ['\\[','\\]']],
+    packages: {'[+]': ['ams']}
+  },
+  svg: {fontCache: 'global'}
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
+
+<!-- Mermaid -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme: 'neutral'});</script>
+</head>
+<body>
+<div class="container">
+
+  <header class="header">
+    <h1>Palm Bounding Box Validator — Complete Mathematical Formulation</h1>
+    <p class="lead">Academic-style, self-contained HTML mirror of the validator design. All formulas use MathJax; visual flowchart uses Mermaid. Parameter tables and rationales are embedded inline.</p>
+  </header>
+
+  <!-- Section 1 -->
+  <section class="card">
+    <h2>1. Bounding Box Representation and Temporal Analysis</h2>
+    <p class="small">Define the axis-aligned bounding box at discrete time \(t\).</p>
+
+    <div class="formula" aria-label="Bounding box definition">
+      <div class="caption">Bounding box vector</div>
+      $$
+      \mathcal{B}_t = \{x_t,\, y_t,\, w_t,\, h_t\} \subset \mathbb{R}^4
+      $$
+      <div class="small" style="margin-top:8px">Here \((x_t,y_t)\) is top-left corner, \(w_t,h_t\) are width and height.</div>
+    </div>
+
+    <div class="formula">
+      <div class="caption">Temporal scale transformation (per-axis)</div>
+      $$
+      \mathbf{S}_t = \begin{pmatrix} S_x \\[4pt] S_y \end{pmatrix}
+      =
+      \begin{pmatrix} \dfrac{w_t}{w_{t-1}} \\[6pt] \dfrac{h_t}{h_{t-1}} \end{pmatrix}
+      $$
+    </div>
+
+    <div class="note">
+      <strong>Note:</strong> Per-axis scale ratios expose non-uniform scaling and aspect distortions which are critical for validation.
+    </div>
+  </section>
+
+  <!-- Section 2 -->
+  <section class="card">
+    <h2>2. Deformation Normalization Framework</h2>
+
+    <h3 style="margin-top:6px">2.1 Scale Asymmetry Measure</h3>
+    <div class="formula">
+      <div class="caption">Normalized scale deviation (percentage)</div>
+      $$
+      D_{\text{scale}} = \dfrac{\,|S_x - S_y|\,}{\tfrac{1}{2}(S_x + S_y)} \times 100\%
+      $$
+      <div class="small" style="margin-top:6px">Perfect uniform scaling yields \(D_{\text{scale}}=0\%\).</div>
+    </div>
+
+    <h3>2.2 Aspect Ratio Stability</h3>
+    <div class="formula">
+      <div class="caption">Temporal aspect ratio deviation</div>
+      $$
+      A_t = \dfrac{w_t}{h_t}, \qquad
+      \Delta A_{\text{norm}} = \dfrac{|A_t - A_{t-1}|}{A_{t-1}}
+      $$
+    </div>
+
+    <h3>2.3 Box Deformation Energy</h3>
+    <div class="formula">
+      <div class="caption">Combined deformation energy</div>
+      $$
+      E_{\text{deform}} = \alpha_1 D_{\text{scale}}^2
+                       + \alpha_2 \big(\Delta A_{\text{norm}}\big)^2
+                       + \alpha_3 \,\big\|\mathbf{v}_{\text{center}}\big\|^2
+      $$
+      <div class="small" style="margin-top:8px">
+        where \(\mathbf{v}_{\text{center}} = \dfrac{\|\mathbf{c}_t - \mathbf{c}_{t-1}\|}{\Delta t}\) is center velocity (px/frame).
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Rationale:</strong> Squared terms penalize large sudden deformations; velocity term discourages excessive center motion that often indicates tracking errors.
+    </div>
+  </section>
+
+  <!-- Section 3 -->
+  <section class="card">
+    <h2>3. Symmetrical Validation Framework</h2>
+
+    <h3>3.1 Bilateral Symmetry Analysis</h3>
+    <p class="small">Using landmark pairs to evaluate left-right structure.</p>
+
+    <div class="formula">
+      <div class="caption">Example symmetry pairs</div>
+      $$
+      \text{Pairs: } (l_4, l_{20}),\ (l_8, l_{12}),\ (l_{12}, l_{16})
+      $$
+    </div>
+
+    <div class="formula">
+      <div class="caption">Symmetry deviation per pair</div>
+      $$
+      \sigma_{ij} = \dfrac{\big\|\,l_i - \operatorname{mirror}(l_j, \mathbf{c}_{\text{hand}})\,\big\|}
+                           {\big\|\,\mathbf{c}_{\text{hand}} - l_{\text{wrist}}\,\big\|}
+      $$
+      <div class="small" style="margin-top:6px">
+        Mirror reflects \(l_j\) across the hand central axis; normalization by hand size keeps metric scale-invariant.
+      </div>
+    </div>
+
+    <h3>3.2 Depth Consistency Validation</h3>
+    <div class="formula">
+      <div class="caption">Depth symmetry (MCP joints)</div>
+      $$
+      \Delta Z_{\text{sym}} = \dfrac{\big| z_{\text{MCP}_2} - z_{\text{MCP}_5} \big|}
+                                   {\tfrac{1}{2}\big(|z_{\text{MCP}_2}| + |z_{\text{MCP}_5}|\big)}
+      $$
+    </div>
+  </section>
+
+  <!-- Section 4 -->
+  <section class="card">
+    <h2>4. Validation Algorithm: Multi-Criteria Decision</h2>
+
+    <div class="formula">
+      <div class="caption">Decision function</div>
+      $$
+      \mathcal{V}(\mathcal{B}_t, \mathbf{L}_t) =
+      \begin{cases}
+        1 & \text{if } \mathbf{C}_{\text{primary}} \land \mathbf{C}_{\text{secondary}} \land \mathbf{C}_{\text{confidence}}\\[6pt]
+        0 & \text{otherwise}
+      \end{cases}
+      $$
+    </div>
+
+    <h3 style="margin-top:8px">Primary constraints</h3>
+    <div class="formula">
+      $$
+      \begin{aligned}
+      &D_{\text{scale}} < \delta_{\text{scale}} \quad(\text{e.g. }15\%)\\[6pt]
+      &A_t \in [0.65,\,1.85]\\[6pt]
+      &E_{\text{deform}} < \epsilon_{\text{max}} \quad(\text{e.g. }0.25)
+      \end{aligned}
+      $$
+    </div>
+
+    <h3>Secondary constraints</h3>
+    <div class="formula">
+      $$
+      \begin{aligned}
+      &\Delta Z_{\text{sym}} < \delta_{\text{depth}} \quad(\text{e.g. }8\%)\\[6pt]
+      &\max_{(i,j)} \sigma_{ij} < \sigma_{\text{max}} \quad(\text{e.g. }0.12)\\[6pt]
+      &\big\|\mathbf{v}_{\text{center}}\big\| < v_{\text{max}} \quad(\text{px/frame, e.g. }150)
+      \end{aligned}
+      $$
+    </div>
+
+    <h3>Confidence constraints</h3>
+    <div class="formula">
+      $$
+      \begin{aligned}
+      &\bar{C}_{\text{landmark}} = \dfrac{1}{21}\sum_{i=1}^{21} c_i > 0.75\\[6pt]
+      &\min_i c_i > 0.5\\[6pt]
+      &|\{i : c_i > 0.8\}| \ge 15
+      \end{aligned}
+      $$
+    </div>
+
+    <div class="note">
+      <strong>Interpretation:</strong> Primary constraints ensure geometric sanity; secondary constraints verify structural symmetry and motion; confidence constraints avoid low-certainty frames.
+    </div>
+  </section>
+
+  <!-- Section 4.2 Temporal smoothing -->
+  <section class="card">
+    <h2>4.2 Temporal Smoothing (Kalman-like / Exponential)</h2>
+
+    <div class="formula">
+      <div class="caption">Smoothed per-axis scale</div>
+      $$
+      \begin{aligned}
+      \hat{S}_x^{(t)} &= \alpha S_x + (1-\alpha)\,\hat{S}_x^{(t-1)}\\[6pt]
+      \hat{S}_y^{(t)} &= \alpha S_y + (1-\alpha)\,\hat{S}_y^{(t-1)}\\[6pt]
+      \hat{D}_{\text{scale}}^{(t)} &= \dfrac{\,|\hat{S}_x^{(t)} - \hat{S}_y^{(t)}|\,}
+                                         {\tfrac{1}{2}(\hat{S}_x^{(t)} + \hat{S}_y^{(t)})}
+      \end{aligned}
+      $$
+    </div>
+
+    <table>
+      <thead><tr><th>Parameter</th><th>Meaning</th><th>Suggested Range</th></tr></thead>
+      <tbody>
+      <tr><td>\(\alpha\)</td><td>Smoothing factor</td><td>0.30 – 0.70</td></tr>
+      <tr><td>\(\delta_{\text{scale}}\)</td><td>Scale asymmetry threshold</td><td>12% – 18%</td></tr>
+      <tr><td>\(\epsilon_{\text{max}}\)</td><td>Deformation energy limit</td><td>0.20 – 0.30</td></tr>
+      <tr><td>\(\delta_{\text{depth}}\)</td><td>Depth symmetry threshold</td><td>6% – 10%</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Section 5 -->
+  <section class="card">
+    <h2>5. Weights & Implementation Parameters</h2>
+
+    <div class="formula">
+      <div class="caption">Deformation energy weights (recommended)</div>
+      $$
+      \alpha_1 = 0.4,\quad \alpha_2 = 0.35,\quad \alpha_3 = 0.25
+      $$
+    </div>
+
+    <div class="formula">
+      <div class="caption">Algorithm (high-level)</div>
+      $$
+      \begin{aligned}
+      &\textbf{Input: }\ \mathcal{B}_t,\,\mathcal{B}_{t-1},\,\mathbf{L}_t,\,\mathbf{C}_t\\[4pt]
+      &1.\ \mathbf{S}_t = \big(\tfrac{w_t}{w_{t-1}},\ \tfrac{h_t}{h_{t-1}}\big)^\top\\[4pt]
+      &2.\ D_{\text{scale}} = \dfrac{|S_x - S_y|}{\tfrac{1}{2}(S_x + S_y)} \times 100\%\\[4pt]
+      &3.\ E_{\text{deform}} = 0.4 D_{\text{scale}}^2 + 0.35(\Delta A_{\text{norm}})^2 + 0.25\|\mathbf{v}_{\text{center}}\|^2\\[4pt]
+      &4.\ \text{Evaluate constraints (primary, secondary, confidence)}\\[4pt]
+      &5.\ \textbf{Return } 1 \text{ if satisfied; else } 0
+      \end{aligned}
+      $$
+    </div>
+
+    <div class="note">
+      <strong>Practical tips:</strong>
+      <ul style="margin:8px 0 0 18px;padding:0;color:var(--muted)">
+        <li>Estimate \(\mathbf{c}_t\) (box center) with subpixel centering for accurate velocity.</li>
+        <li>Use a short temporal window (e.g., 3–5 frames) to stabilize thresholds before decision.</li>
+        <li>For multi-hand scenarios, validate per-hand and resolve overlaps by IoU-based assignment.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Flow -->
+  <section class="card">
+    <h2>Pipeline Flow (Conceptual)</h2>
+    <div class="mermaid">
+      graph TD
+        A[Input Frame] --> B[Compute Bounding Box \mathcal{B}_t]
+        B --> C[Compute \mathbf{S}_t (S_x, S_y)]
+        C --> D[Compute D_{scale}, \Delta A_{norm}]
+        D --> E[Deformation Energy E_{deform}]
+        E --> F[Symmetry & Depth Checks (\sigma_{ij}, \Delta Z_{sym})]
+        F --> G[Confidence Checks \bar{C}_{landmark}]
+        G --> H{All constraints satisfied?}
+        H -->|Yes| I[Return Valid (1)]
+        H -->|No| J[Return Invalid (0)]
+    </div>
+  </section>
+
+  <footer class="footer">
+    This document is a complete, standalone HTML translation of the Palm Bounding Box Validator mathematical specification. All formulas are display-ready (MathJax) and the flowchart is rendered via Mermaid. Adjust parameter ranges for your dataset and camera geometry as needed.
+  </footer>
+
+</div>
+</body>
+</html>
