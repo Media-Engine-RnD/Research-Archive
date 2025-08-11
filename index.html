@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>OpenCV + MediaPipe Hand Validator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Documentation Hub</title>
 
-<!-- Enable MathJax for equations -->
+<!-- MathJax for equations -->
 <script>
 MathJax = {
   tex: {
@@ -15,229 +16,677 @@ MathJax = {
   svg: { fontCache: 'global' }
 };
 </script>
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.min.js"></script>
+
+<!-- Marked.js for markdown parsing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.2/marked.min.js"></script>
+
+<!-- Prism.js for syntax highlighting -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
 
 <style>
+:root {
+  --primary-color: #2c3e50;
+  --secondary-color: #3498db;
+  --accent-color: #e74c3c;
+  --background-color: #f8f9fa;
+  --card-background: #ffffff;
+  --text-color: #2c3e50;
+  --border-color: #dee2e6;
+  --shadow: 0 2px 10px rgba(0,0,0,0.1);
+  --hover-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 body {
-  max-width: 900px;
-  margin: auto;
-  padding: 2rem;
-  font-family: Arial, sans-serif;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   line-height: 1.6;
+  color: var(--text-color);
+  background: var(--background-color);
+  overflow-x: hidden;
 }
-h1, h2, h3, h4 {
-  font-family: Georgia, serif;
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
 }
-pre {
-  background: #f5f5f5;
-  padding: 1em;
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  color: white;
+  padding: 3rem 0;
+  text-align: center;
+  margin-bottom: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  opacity: 0.1;
+  z-index: 0;
+}
+
+.header-content {
+  position: relative;
+  z-index: 1;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.header p {
+  font-size: 1.2rem;
+  opacity: 0.9;
+}
+
+/* Navigation */
+.nav-container {
+  background: var(--card-background);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  margin-bottom: 2rem;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.back-btn {
+  background: var(--secondary-color);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: none;
+}
+
+.back-btn:hover {
+  background: #2980b9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.breadcrumb {
+  flex: 1;
+  font-size: 1rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.search-container {
+  position: relative;
+}
+
+.search-input {
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 1rem;
+  width: 300px;
+  transition: border-color 0.3s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--secondary-color);
+}
+
+/* Main content area */
+.main-content {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+/* Document grid */
+.docs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.doc-card {
+  background: var(--card-background);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.doc-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(45deg, var(--secondary-color), var(--accent-color));
+  transform: scaleY(0);
+  transition: transform 0.3s ease;
+}
+
+.doc-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--hover-shadow);
+}
+
+.doc-card:hover::before {
+  transform: scaleY(1);
+}
+
+.doc-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+  line-height: 1.3;
+}
+
+.doc-excerpt {
+  color: #666;
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.doc-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.doc-date {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.doc-type {
+  background: var(--secondary-color);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-weight: 500;
+  font-size: 0.8rem;
+}
+
+/* Content viewer */
+.content-viewer {
+  display: none;
+  background: var(--card-background);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.content-header {
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  padding: 2rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.content-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+}
+
+.content-meta {
+  color: #666;
+  font-size: 1rem;
+}
+
+.content-body {
+  padding: 2rem;
+  max-width: none;
+}
+
+/* Markdown content styling */
+.content-body h1, .content-body h2, .content-body h3, .content-body h4, .content-body h5, .content-body h6 {
+  color: var(--primary-color);
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.content-body h1 { font-size: 2.5rem; }
+.content-body h2 { font-size: 2rem; }
+.content-body h3 { font-size: 1.75rem; }
+.content-body h4 { font-size: 1.5rem; }
+
+.content-body p {
+  margin-bottom: 1.5rem;
+  line-height: 1.7;
+}
+
+.content-body pre {
+  background: #2d3748;
+  border-radius: 8px;
+  padding: 1.5rem;
   overflow-x: auto;
+  margin: 1.5rem 0;
+  box-shadow: var(--shadow);
 }
-code {
-  background: #f0f0f0;
-  padding: 0.2em 0.4em;
+
+.content-body code:not(pre code) {
+  background: #f1f3f4;
+  padding: 0.2rem 0.4rem;
   border-radius: 4px;
+  font-size: 0.9rem;
 }
-table {
-  border-collapse: collapse;
-  margin: 1em 0;
+
+.content-body table {
   width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  box-shadow: var(--shadow);
+  border-radius: 8px;
+  overflow: hidden;
 }
-th, td {
-  border: 1px solid #ccc;
-  padding: 0.5em;
+
+.content-body th, .content-body td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.content-body th {
+  background: var(--primary-color);
+  color: white;
+  font-weight: 600;
+}
+
+.content-body tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.content-body blockquote {
+  border-left: 4px solid var(--secondary-color);
+  margin: 1.5rem 0;
+  padding: 1rem 2rem;
+  background: #f8f9fa;
+  border-radius: 0 8px 8px 0;
+}
+
+.content-body ul, .content-body ol {
+  margin: 1rem 0 1rem 2rem;
+}
+
+.content-body li {
+  margin-bottom: 0.5rem;
+}
+
+/* Loading and error states */
+.loading, .error, .no-docs {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #666;
+}
+
+.loading::after {
+  content: '';
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid var(--secondary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-left: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error {
+  color: var(--accent-color);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+  
+  .header h1 {
+    font-size: 2rem;
+  }
+  
+  .docs-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .nav-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .search-input {
+    width: 100%;
+  }
+  
+  .content-body {
+    padding: 1rem;
+  }
+  
+  .content-body h1 { font-size: 2rem; }
+  .content-body h2 { font-size: 1.75rem; }
+  .content-body h3 { font-size: 1.5rem; }
+  
+  .content-body pre {
+    padding: 1rem;
+  }
+}
+
+/* Print styles */
+@media print {
+  .header, .nav-container, .docs-grid {
+    display: none;
+  }
+  
+  .content-viewer {
+    display: block !important;
+    box-shadow: none;
+  }
 }
 </style>
 </head>
 <body>
 
-<h1>Complete Mathematical Formulation: OpenCV + MediaPipe Hand Validator</h1>
+<header class="header">
+  <div class="container">
+    <div class="header-content">
+      <h1>📚 Documentation Hub</h1>
+      <p>Explore our comprehensive documentation library</p>
+    </div>
+  </div>
+</header>
 
-<h3>1. Bounding Box Representation and Temporal Analysis</h3>
+<div class="container">
+  <nav class="nav-container">
+    <button class="back-btn" onclick="showDocsList()">
+      ← Back to Documents
+    </button>
+    <div class="breadcrumb">
+      <span id="breadcrumb-text">All Documents</span>
+    </div>
+    <div class="search-container">
+      <input type="text" class="search-input" placeholder="Search documents..." id="searchInput">
+    </div>
+  </nav>
 
-<p>The bounding box at time $t$ is defined as:</p>
+  <main class="main-content">
+    <!-- Document Grid -->
+    <div id="docs-list" class="docs-grid">
+      <div class="loading">Loading documents...</div>
+    </div>
 
-$$
-\mathcal{B}_t = \{x_t, y_t, w_t, h_t\} \subset \mathbb{R}^4
-$$
+    <!-- Content Viewer -->
+    <div id="content-viewer" class="content-viewer">
+      <div class="content-header">
+        <h1 class="content-title" id="content-title"></h1>
+        <div class="content-meta" id="content-meta"></div>
+      </div>
+      <div class="content-body" id="content-body"></div>
+    </div>
+  </main>
+</div>
 
-<p>where $(x_t, y_t)$ represents the top-left corner coordinates, and $(w_t, h_t)$ are the width and height dimensions at discrete time $t$.</p>
+<script>
+class DocumentationHub {
+  constructor() {
+    this.documents = [];
+    this.filteredDocuments = [];
+    this.currentDocument = null;
+    
+    this.init();
+  }
+  
+  async init() {
+    await this.loadDocuments();
+    this.setupEventListeners();
+  }
+  
+  async loadDocuments() {
+    try {
+      // GitHub API endpoint for the docs directory
+      const repoPath = window.location.pathname.split('/')[1]; // Get repo name from URL
+      const owner = window.location.hostname.split('.')[0]; // Get owner from subdomain (for github.io)
+      
+      // For GitHub Pages, we'll need to maintain a manifest or discover files differently
+      // This is a fallback approach using a predefined list or API
+      
+      const response = await fetch(`https://api.github.com/repos/${owner}/${repoPath}/contents/docs`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch documents list');
+      }
+      
+      const files = await response.json();
+      const markdownFiles = files.filter(file => 
+        file.name.toLowerCase().endsWith('.md') && file.type === 'file'
+      );
+      
+      // Load each markdown file
+      for (const file of markdownFiles) {
+        try {
+          const contentResponse = await fetch(file.download_url);
+          const content = await contentResponse.text();
+          
+          const doc = await this.parseMarkdownFile(file, content);
+          this.documents.push(doc);
+        } catch (error) {
+          console.warn(`Failed to load ${file.name}:`, error);
+        }
+      }
+      
+      this.filteredDocuments = [...this.documents];
+      this.renderDocuments();
+      
+    } catch (error) {
+      console.error('Error loading documents:', error);
+      this.showError('Failed to load documents. Please check if the docs/ directory exists.');
+    }
+  }
+  
+  async parseMarkdownFile(file, content) {
+    // Extract title from first heading or filename
+    const titleMatch = content.match(/^#\s+(.+)$/m);
+    const title = titleMatch ? titleMatch[1] : file.name.replace('.md', '');
+    
+    // Extract excerpt from first paragraph
+    const paragraphMatch = content.match(/^(?!#)(.+?)(?:\n\n|\n#|$)/m);
+    const excerpt = paragraphMatch ? 
+      paragraphMatch[1].replace(/\*\*|__|\*|_/g, '').substring(0, 150) + '...' : 
+      'No description available.';
+    
+    // Get file stats
+    const lastModified = new Date(file.updated_at || Date.now());
+    
+    return {
+      name: file.name,
+      title: title,
+      excerpt: excerpt,
+      content: content,
+      lastModified: lastModified,
+      size: file.size,
+      path: file.path,
+      downloadUrl: file.download_url
+    };
+  }
+  
+  renderDocuments() {
+    const container = document.getElementById('docs-list');
+    
+    if (this.filteredDocuments.length === 0) {
+      container.innerHTML = '<div class="no-docs">No documents found.</div>';
+      return;
+    }
+    
+    const html = this.filteredDocuments.map(doc => `
+      <div class="doc-card" onclick="app.showDocument('${doc.name}')">
+        <h3 class="doc-title">${doc.title}</h3>
+        <p class="doc-excerpt">${doc.excerpt}</p>
+        <div class="doc-meta">
+          <span class="doc-date">
+            📅 ${this.formatDate(doc.lastModified)}
+          </span>
+          <span class="doc-type">Markdown</span>
+        </div>
+      </div>
+    `).join('');
+    
+    container.innerHTML = html;
+  }
+  
+  showDocument(fileName) {
+    const doc = this.documents.find(d => d.name === fileName);
+    if (!doc) return;
+    
+    this.currentDocument = doc;
+    
+    // Update navigation
+    document.querySelector('.back-btn').style.display = 'block';
+    document.getElementById('breadcrumb-text').textContent = doc.title;
+    
+    // Hide docs list, show content viewer
+    document.getElementById('docs-list').style.display = 'none';
+    document.getElementById('content-viewer').style.display = 'block';
+    
+    // Populate content
+    document.getElementById('content-title').textContent = doc.title;
+    document.getElementById('content-meta').innerHTML = `
+      📅 Last updated: ${this.formatDate(doc.lastModified)} | 
+      📄 ${Math.round(doc.size / 1024)}KB
+    `;
+    
+    // Parse and render markdown
+    const htmlContent = marked.parse(doc.content);
+    document.getElementById('content-body').innerHTML = htmlContent;
+    
+    // Re-run MathJax if equations are present
+    if (window.MathJax) {
+      MathJax.typesetPromise([document.getElementById('content-body')]);
+    }
+    
+    // Re-run Prism for syntax highlighting
+    if (window.Prism) {
+      Prism.highlightAllUnder(document.getElementById('content-body'));
+    }
+    
+    // Scroll to top
+    window.scrollTo(0, 0);
+  }
+  
+  showDocsList() {
+    // Update navigation
+    document.querySelector('.back-btn').style.display = 'none';
+    document.getElementById('breadcrumb-text').textContent = 'All Documents';
+    
+    // Show docs list, hide content viewer
+    document.getElementById('docs-list').style.display = 'grid';
+    document.getElementById('content-viewer').style.display = 'none';
+    
+    this.currentDocument = null;
+  }
+  
+  filterDocuments(query) {
+    if (!query) {
+      this.filteredDocuments = [...this.documents];
+    } else {
+      const lowerQuery = query.toLowerCase();
+      this.filteredDocuments = this.documents.filter(doc => 
+        doc.title.toLowerCase().includes(lowerQuery) ||
+        doc.excerpt.toLowerCase().includes(lowerQuery) ||
+        doc.name.toLowerCase().includes(lowerQuery)
+      );
+    }
+    this.renderDocuments();
+  }
+  
+  setupEventListeners() {
+    // Search functionality
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('input', (e) => {
+      this.filterDocuments(e.target.value);
+    });
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.currentDocument) {
+        this.showDocsList();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInput.focus();
+      }
+    });
+  }
+  
+  formatDate(date) {
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    }).format(date);
+  }
+  
+  showError(message) {
+    document.getElementById('docs-list').innerHTML = 
+      `<div class="error">❌ ${message}</div>`;
+  }
+}
 
-<p>The <strong>temporal scale transformation</strong> is characterized by:</p>
+// Global functions for onclick handlers
+function showDocsList() {
+  app.showDocsList();
+}
 
-$$
-\mathbf{S}_t = \begin{pmatrix} S_x \\ S_y \end{pmatrix} = \begin{pmatrix} \frac{w_t}{w_{t-1}} \\ \frac{h_t}{h_{t-1}} \end{pmatrix}
-$$
+// Initialize the application
+const app = new DocumentationHub();
 
-<h3>2. Deformation Normalization Framework</h3>
-
-<h4>2.1 Scale Asymmetry Measure</h4>
-
-<p>The <strong>normalized scale deviation</strong> quantifies uniform vs. non-uniform scaling:</p>
-
-$$
-D_{\text{scale}} = \frac{|S_x - S_y|}{\frac{1}{2}(S_x + S_y)} \cdot 100\%
-$$
-
-<p>This normalization ensures scale-invariant deformation detection. For a perfectly uniform transformation, $D_{\text{scale}} = 0$.</p>
-
-<h4>2.2 Aspect Ratio Stability</h4>
-
-<p>The <strong>temporal aspect ratio deviation</strong> is defined as:</p>
-
-$$
-\Delta A_{\text{norm}} = \frac{|A_t - A_{t-1}|}{A_{t-1}} \quad \text{where} \quad A_t = \frac{w_t}{h_t}
-$$
-
-<h4>2.3 Box Deformation Energy</h4>
-
-<p>The <strong>total deformation energy</strong> combines scale and aspect changes:</p>
-
-$$
-E_{\text{deform}} = \alpha_1 D_{\text{scale}}^2 + \alpha_2 (\Delta A_{\text{norm}})^2 + \alpha_3 \|\mathbf{v}_{\text{center}}\|^2
-$$
-
-<p>where $\mathbf{v}_{\text{center}} = \frac{\|\mathbf{c}_t - \mathbf{c}_{t-1}\|}{\Delta t}$ is the normalized center velocity.</p>
-
-<h3>3. Symmetrical Validation Framework</h3>
-
-<h4>3.1 Bilateral Symmetry Analysis</h4>
-
-<p>For hand landmarks $\mathbf{L} = \{l_i\}_{i=1}^{21}$, we define <strong>bilateral symmetry</strong> using mirrored landmark pairs:</p>
-
-$$
-\text{Symmetry pairs: } \{(l_4, l_{20}), (l_8, l_{12}), (l_{12}, l_{16})\}
-$$
-
-<p>The <strong>symmetry deviation</strong> for each pair $(i,j)$ is:</p>
-
-$$
-\sigma_{ij} = \frac{\|l_i - \text{mirror}(l_j, \mathbf{c}_{\text{hand}})\|}{\|\mathbf{c}_{\text{hand}} - l_{\text{wrist}}\|}
-$$
-
-<p>where $\text{mirror}(l_j, \mathbf{c})$ reflects landmark $l_j$ across the hand's central axis.</p>
-
-<h4>3.2 Depth Consistency Validation</h4>
-
-<p>The <strong>depth symmetry measure</strong> for MCP joints:</p>
-
-$$
-\Delta Z_{\text{sym}} = \frac{|z_{\text{MCP}_2} - z_{\text{MCP}_5}|}{\frac{1}{2}(|z_{\text{MCP}_2}| + |z_{\text{MCP}_5}|)}
-$$
-
-<h3>4. Complete Validation Algorithm</h3>
-
-<h4>4.1 Multi-Criteria Decision Function</h4>
-
-$$
-\mathcal{V}(\mathcal{B}_t, \mathbf{L}_t) = \begin{cases} 
-1 & \text{if } \mathbf{C}_{\text{primary}} \land \mathbf{C}_{\text{secondary}} \land \mathbf{C}_{\text{confidence}} \\
-0 & \text{otherwise}
-\end{cases}
-$$
-
-<p><strong>Primary Constraints ($\mathbf{C}_{\text{primary}}$):</strong></p>
-
-$$
-\begin{align}
-D_{\text{scale}} &< \delta_{\text{scale}} = 15\% \\
-A_t &\in [0.65, 1.85] \\
-E_{\text{deform}} &< \epsilon_{\text{max}} = 0.25
-\end{align}
-$$
-
-<p><strong>Secondary Constraints ($\mathbf{C}_{\text{secondary}}$):</strong></p>
-
-$$
-\begin{align}
-\Delta Z_{\text{sym}} &< \delta_{\text{depth}} = 8\% \\
-\max_i \sigma_{ij} &< \sigma_{\text{max}} = 0.12 \\
-\|\mathbf{v}_{\text{center}}\| &< v_{\text{max}} = 150 \text{ px/frame}
-\end{align}
-$$
-
-<p><strong>Confidence Constraints ($\mathbf{C}_{\text{confidence}}$):</strong></p>
-
-$$
-\begin{align}
-\bar{C}_{\text{landmark}} &= \frac{1}{21}\sum_{i=1}^{21} c_i > 0.75 \\
-\min_i c_i &> 0.5 \\
-|\{i : c_i > 0.8\}| &\geq 15
-\end{align}
-$$
-
-<h4>4.2 Temporal Smoothing with Kalman-like Filter</h4>
-
-<p>To reduce jitter, implement exponential smoothing:</p>
-
-$$
-\begin{align}
-\hat{S}_x^{(t)} &= \alpha S_x + (1-\alpha)\hat{S}_x^{(t-1)} \\
-\hat{S}_y^{(t)} &= \alpha S_y + (1-\alpha)\hat{S}_y^{(t-1)} \\
-\hat{D}_{\text{scale}}^{(t)} &= \frac{|\hat{S}_x^{(t)} - \hat{S}_y^{(t)}|}{\frac{1}{2}(\hat{S}_x^{(t)} + \hat{S}_y^{(t)})}
-\end{align}
-$$
-
-<p>with $\alpha \in [0.3, 0.7]$ as the smoothing parameter.</p>
-
-<h3>5. Implementation Parameters</h3>
-
-<h4>5.1 Empirically Validated Thresholds</h4>
-
-<table>
-<thead>
-<tr><th>Parameter</th><th>Mathematical Symbol</th><th>Value Range</th><th>Justification</th></tr>
-</thead>
-<tbody>
-<tr><td>Scale asymmetry threshold</td><td>$\delta_{\text{scale}}$</td><td>12--18%</td><td>Hand maintains proportional scaling</td></tr>
-<tr><td>Aspect ratio bounds</td><td>$[a_{\min}, a_{\max}]$</td><td>[0.65, 1.85]</td><td>Natural hand orientation limits</td></tr>
-<tr><td>Deformation energy limit</td><td>$\epsilon_{\text{max}}$</td><td>0.20--0.30</td><td>Prevents excessive distortion</td></tr>
-<tr><td>Depth symmetry threshold</td><td>$\delta_{\text{depth}}$</td><td>6--10%</td><td>MCP joints remain coplanar</td></tr>
-<tr><td>Bilateral symmetry limit</td><td>$\sigma_{\text{max}}$</td><td>0.10--0.15</td><td>Hand maintains bilateral structure</td></tr>
-<tr><td>Velocity constraint</td><td>$v_{\text{max}}$</td><td>100--200 px/frame</td><td>Realistic hand movement speeds</td></tr>
-<tr><td>Minimum avg confidence</td><td>$\bar{C}_{\min}$</td><td>0.70--0.85</td><td>Reliable landmark detection</td></tr>
-<tr><td>Smoothing factor</td><td>$\alpha$</td><td>0.35--0.65</td><td>Balance responsiveness/stability</td></tr>
-</tbody>
-</table>
-
-<h4>5.2 Weighting Coefficients for Deformation Energy</h4>
-
-$$
-\alpha_1 = 0.4 \text{ (scale)}, \quad \alpha_2 = 0.35 \text{ (aspect)}, \quad \alpha_3 = 0.25 \text{ (velocity)}
-$$
-
-<h3>6. Complete Validation Function</h3>
-
-$$
-\begin{aligned}
-&\textbf{Algorithm: Hand Bounding Box Validation} \\
-&\textbf{Require:} \ \mathcal{B}_t, \mathcal{B}_{t-1}, \mathbf{L}_t, \mathbf{C}_t \\
-&\textbf{Ensure:} \ \text{validity} \in \{0, 1\} \\
-&1.\ \mathbf{S}_t \leftarrow \left( \frac{w_t}{w_{t-1}}, \frac{h_t}{h_{t-1}} \right)^{T} \\
-&2.\ D_{\text{scale}} \leftarrow \frac{|S_x - S_y|}{\frac{1}{2}(S_x + S_y)} \times 100\% \\
-&3.\ E_{\text{deform}} \leftarrow 0.4 D_{\text{scale}}^2 + 0.35 (\Delta A_{\text{norm}})^2 + 0.25 \|\mathbf{v}_{\text{center}}\|^2 \\
-&4.\ \Delta Z_{\text{sym}} \leftarrow \frac{|z_{\text{MCP}_2} - z_{\text{MCP}_5}|}{\frac{1}{2}(|z_{\text{MCP}_2}| + |z_{\text{MCP}_5}|)} \\
-&5.\ \bar{C}_{\text{landmark}} \leftarrow \frac{1}{21} \sum_{i=1}^{21} c_i \\
-&6.\ \textbf{if} \ D_{\text{scale}} < 15\% \ \land \ A_t \in [0.65, 1.85] \ \land \ E_{\text{deform}} < 0.25 \ \textbf{then} \\
-&\quad \ \ \textbf{if} \ \Delta Z_{\text{sym}} < 8\% \ \land \ \bar{C}_{\text{landmark}} > 0.75 \ \textbf{then} \\
-&\quad\quad \ \text{return} \ 1 \quad \text{(Valid frame)} \\
-&\quad \ \ \textbf{end if} \\
-&\textbf{end if} \\
-&7.\ \text{return} \ 0 \quad \text{(Invalid frame)}
-\end{aligned}
-$$
-
-<h3>7. Normalization Rationale</h3>
-
-<p>The normalization schemes ensure scale-invariant and resolution-independent validation:</p>
-<ul>
-<li><strong>Scale Asymmetry</strong>: Normalized by mean scale prevents bias toward large/small hands.</li>
-<li><strong>Aspect Deviation</strong>: Relative change detection maintains sensitivity across different hand sizes.</li>
-<li><strong>Depth Symmetry</strong>: Proportional measure accounts for varying hand distances from camera.</li>
-<li><strong>Landmark Symmetry</strong>: Normalized by hand size ensures consistent validation across users.</li>
-</ul>
-
-<p>This mathematical framework provides robust, real-time hand pose validation with comprehensive deformation detection and symmetry analysis.</p>
+// Handle browser back/forward buttons
+window.addEventListener('popstate', (e) => {
+  if (e.state && e.state.document) {
+    app.showDocument(e.state.document);
+  } else {
+    app.showDocsList();
+  }
+});
+</script>
 
 </body>
 </html>
