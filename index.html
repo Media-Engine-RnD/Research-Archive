@@ -22,8 +22,29 @@
   <style>
     /* Preserve your root styling… */
     :root { --primary: #2c3e50; --secondary: #3498db; --accent: #e74c3c; --background: #f8f9fa; --card: #fff; --text: #2c3e50; --border: #dee2e6; --shadow: 0 2px 10px rgba(0,0,0,0.1); --hover-shadow: 0 4px 20px rgba(0,0,0,0.15); }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* Global reset + layout */
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+    body, html { height: 100%; }
+
+    /* Make all selectable text unselectable by default */
+    html, body, * {
+      user-select: none !important;
+      -webkit-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      -webkit-touch-callout: none !important;
+    }
+
+    /* BUT allow form elements to be editable / selectable */
+    input, textarea, select, button, .search-input {
+      user-select: text !important;
+      -webkit-user-select: text !important;
+    }
+
     body { font-family: 'Segoe UI', Tahoma, sans-serif; color: var(--text); background: var(--background); line-height: 1.6; overflow-x: hidden; }
+
     .container { max-width: 1200px; margin: auto; padding: 2rem; }
     .header { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 3rem 0; text-align: center; border-radius: 8px; }
     .header h1 { font-size: 2.5rem; display: inline-flex; align-items: center; gap: 0.5em; }
@@ -44,10 +65,21 @@
     .content-meta { color: #666; font-size: 1rem; }
     .content-body { padding: 2rem; }
     iframe.doc-frame { width: 100%; height: 80vh; border: none; }
+
     .loading, .error, .no-docs { text-align: center; padding: 4rem 2rem; color: #666; }
     .loading::after { content: ''; display: inline-block; width: 2rem; height: 2rem; border: 3px solid #f3f3f3; border-top: 3px solid var(--secondary); border-radius: 50%; animation: spin 1s linear infinite; margin-left: 1rem; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .icon-img { height: 1em; vertical-align: middle; }
+
+    /* Dev-tools overlay (hidden by default) */
+    #devtools-overlay {
+      position: fixed; inset: 0; background: rgba(12,12,12,0.98); color: #ddd; z-index: 99999;
+      display: none; align-items: center; justify-content: center; text-align: center; padding: 2rem;
+      font-family: monospace;
+    }
+    #devtools-overlay p { font-size: 1.1rem; line-height: 1.6; }
+    #devtools-overlay .dismiss { margin-top: 1rem; display: inline-block; background: #444; color: #fff; border-radius: 6px; padding: 0.5rem 1rem; cursor: pointer; }
+
     @media (max-width: 768px) {
       .search-input { width: 100%; }
       .docs-grid { grid-template-columns: 1fr; }
@@ -56,6 +88,14 @@
   </style>
 </head>
 <body>
+
+  <div id="devtools-overlay" aria-hidden="true">
+    <div>
+      <h2 style="color:#fff">Access Restricted</h2>
+      <p>Debugging tools or attempts to inspect the page were detected. For security and content protection, interactive content has been obfuscated.</p>
+      <div class="dismiss" onclick="document.getElementById('devtools-overlay').style.display='none';">Dismiss overlay</div>
+    </div>
+  </div>
 
   <header class="header">
     <div class="container">
@@ -86,6 +126,239 @@
       </div>
     </main>
   </div>
+
+  <script>
+    /* ----------------------------
+       PROTECTION & OBFUSCATION HELPERS
+       ---------------------------- */
+
+    (function protectionLayer(){
+      // small, fast random string generator
+      function randomString(len){
+        len = Math.max(8, len || 32);
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`~!@#$%^&*()-_=+[]{}|;:,.<>?/ ';
+        let out = '';
+        for(let i=0;i<len;i++) out += chars[Math.floor(Math.random()*chars.length)];
+        return out;
+      }
+
+      // Replace clipboard contents with randomized text
+      document.addEventListener('copy', function(e){
+        try {
+          e.preventDefault();
+          const text = randomString(120);
+          if (e.clipboardData) {
+            e.clipboardData.setData('text/plain', text);
+            e.clipboardData.setData('text/html', text);
+          } else if (window.clipboardData) {
+            window.clipboardData.setData('Text', text);
+          }
+        } catch (err) { /* ignore */ }
+      }, true);
+
+      // Prevent context menu
+      document.addEventListener('contextmenu', function(e){
+        e.preventDefault();
+      }, true);
+
+      // Block common 'view source' and devtools keyboard shortcuts
+      document.addEventListener('keydown', function(e){
+        // F12, Ctrl+Shift+I/J/C, Ctrl+U, Ctrl+Shift+C, Ctrl+Shift+S, Ctrl+S
+        if (e.key === 'F12' ||
+            (e.ctrlKey && e.shiftKey && ['I','J','C','S'].includes(e.key.toUpperCase())) ||
+            (e.ctrlKey && e.key.toUpperCase() === 'U') ||
+            (e.ctrlKey && e.key.toUpperCase() === 'S') ||
+            (e.metaKey && e.key === 'I')) {
+          e.preventDefault();
+          e.stopPropagation();
+          // show overlay as deterrent
+          const ov = document.getElementById('devtools-overlay');
+          if (ov) ov.style.display = 'flex';
+          return false;
+        }
+      }, true);
+
+      // selection obfuscation: when any selection exists, replace selected containers' text
+      const replaced = new Map();
+      let lastSelectionAt = 0;
+      function obfuscateSelection(){
+        const sel = document.getSelection();
+        if (!sel || sel.isCollapsed) return;
+        lastSelectionAt = Date.now();
+        try {
+          for (let i = 0; i < sel.rangeCount; i++){
+            const r = sel.getRangeAt(i);
+            // find reasonable element anchors to replace (parents of start/end containers)
+            const startEl = (r.startContainer.nodeType === 3) ? r.startContainer.parentElement : r.startContainer;
+            const endEl = (r.endContainer.nodeType === 3) ? r.endContainer.parentElement : r.endContainer;
+            [startEl, endEl].forEach(el=>{
+              if (!el || replaced.has(el) || el.tagName === 'BODY' || el.tagName === 'HTML') return;
+              try {
+                replaced.set(el, el.innerHTML);
+                // generate random replacement similar in length to original text
+                const approxLen = (el.innerText && el.innerText.length) ? el.innerText.length : 40;
+                el.innerHTML = randomString(Math.min(approxLen, 400));
+                // mark with data attribute for easier restoration
+                el.setAttribute('data-obf', '1');
+              } catch (err) {
+                // silent
+              }
+            });
+          }
+        } catch (err) { /* ignore */ }
+      }
+
+      function restoreObfuscated(){
+        // restore everything replaced if enough time passed or selection collapsed
+        const now = Date.now();
+        if (now - lastSelectionAt < 900) return; // give user a short window; waits until selection ends
+        for (const [el, html] of replaced.entries()){
+          try {
+            el.innerHTML = html;
+            el.removeAttribute('data-obf');
+            replaced.delete(el);
+          } catch (err) {
+            // ignore errors and keep trying next time
+          }
+        }
+      }
+
+      let obfuscationTimer = null;
+      document.addEventListener('selectionchange', function(){
+        try {
+          const sel = document.getSelection();
+          if (sel && !sel.isCollapsed && sel.toString().trim().length > 0){
+            obfuscateSelection();
+            if (obfuscationTimer) clearTimeout(obfuscationTimer);
+            obfuscationTimer = setTimeout(restoreObfuscated, 1400);
+          } else {
+            // selection collapsed -> schedule restore
+            if (obfuscationTimer) clearTimeout(obfuscationTimer);
+            obfuscationTimer = setTimeout(restoreObfuscated, 400);
+          }
+        } catch (err) { /* ignore */ }
+      }, true);
+
+      // attempt to keep iframes non-selectable and intercept their copy/contextmenu
+      function hardenIframe(iframe){
+        try {
+          const cw = iframe.contentWindow;
+          const doc = iframe.contentDocument || cw.document;
+          if (!doc) return;
+          // inject a small protection style and script
+          const style = doc.createElement('style');
+          style.innerHTML = `*{user-select:none !important; -webkit-user-select:none !important;} input, textarea, select, button{ user-select:text !important; } body{ -webkit-touch-callout:none !important; }`;
+          doc.head && doc.head.appendChild(style);
+          // intercept copy/contextmenu inside iframe
+          doc.addEventListener('copy', function(e){
+            try {
+              e.preventDefault();
+              const t = randomString(80);
+              if (e.clipboardData) e.clipboardData.setData('text/plain', t);
+            } catch(e) {}
+          }, true);
+          doc.addEventListener('contextmenu', function(e){ e.preventDefault(); }, true);
+          // override selection behavior
+          doc.addEventListener('selectionchange', function(){
+            const sel = doc.getSelection ? doc.getSelection() : null;
+            if (sel && !sel.isCollapsed) {
+              try {
+                // clear selection immediately and write random text into clipboard
+                if (doc.execCommand) {
+                  // clear selection (best-effort)
+                  sel.removeAllRanges();
+                }
+              } catch(_) {}
+            }
+          }, true);
+        } catch (err) {
+          // cross-origin or access denied; best-effort only
+        }
+      }
+
+      // observe for dynamically inserted iframes and harden them
+      const iframeObserver = new MutationObserver((mutList)=>{
+        for (const m of mutList){
+          for (const node of m.addedNodes){
+            if (node.tagName === 'IFRAME') hardenIframe(node);
+            // also iframes inside added nodes
+            if (node.querySelectorAll) {
+              const iframes = node.querySelectorAll('iframe');
+              iframes.forEach(i => hardenIframe(i));
+            }
+          }
+        }
+      });
+      iframeObserver.observe(document.documentElement || document.body, { childList: true, subtree: true });
+
+      // initial harden of existing iframes
+      document.querySelectorAll('iframe').forEach(hardenIframe);
+
+      /* ----- DevTools detection (heuristics) ----- */
+      let devtoolsOpen = false;
+      const emitDevtoolsOverlay = function(){
+        try {
+          const ov = document.getElementById('devtools-overlay');
+          if (ov) ov.style.display = 'flex';
+          // aggressive obfuscation: replace main content with random text
+          const main = document.querySelector('main');
+          if (main && !main.getAttribute('data-obf-page')) {
+            try {
+              main.setAttribute('data-obf-page','1');
+              main.__saved = main.innerHTML;
+              main.innerHTML = '<div style="padding:40px;font-family:monospace;white-space:pre-wrap;">' + randomString(800) + '</div>';
+            } catch(e){}
+          }
+        } catch(e){}
+      };
+
+      // basic size-based detection + timing-based debugger check
+      function detectDevTools(){
+        try {
+          const threshold = 160;
+          const widthDiff = window.outerWidth - window.innerWidth;
+          const heightDiff = window.outerHeight - window.innerHeight;
+          if (widthDiff > threshold || heightDiff > threshold) {
+            if (!devtoolsOpen) {
+              devtoolsOpen = true;
+              emitDevtoolsOverlay();
+            }
+            return;
+          }
+          // timing-based detection (slow)
+          const start = performance.now();
+          debugger; // may get skipped silently in some clients, wrapped in try/catch
+          const end = performance.now();
+          if (end - start > 100) {
+            if (!devtoolsOpen) { devtoolsOpen = true; emitDevtoolsOverlay(); }
+            return;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+      setInterval(detectDevTools, 800);
+
+      // best-effort: prevent certain mouse gestures used by devtools open attempts
+      window.addEventListener('blur', function(){
+        // if focus leaves to devtools, overlay as well
+        setTimeout(() => {
+          if (document.hasFocus && !document.hasFocus()) {
+            // don't spam; small heuristic
+            emitDevtoolsOverlay();
+          }
+        }, 300);
+      });
+
+      // expose some functions for internal use (not necessary, but helpful for debugging the page's normal runtime)
+      window.__pageProtection = {
+        randomString,
+        restoreObfuscated,
+        isDevtoolsOverlayVisible: function(){ return !!(document.getElementById('devtools-overlay') && document.getElementById('devtools-overlay').style.display !== 'none'); }
+      };
+
+    })();
+  </script>
 
   <script>
     // Replace emojis with SVGs
@@ -124,7 +397,7 @@
               const parser = new DOMParser();
               const doc = parser.parseFromString(html, 'text/html');
               const title = doc.querySelector('h1')?.textContent || f.name.replace('.html', '');
-              const excerpt = doc.querySelector('p')?.textContent?.slice(0, 150) + '...' || 'No description.';
+              const excerpt = (doc.querySelector('p')?.textContent?.slice(0, 150) + '...') || 'No description.';
               const lastModified = new Date(res.headers.get('Last-Modified') || Date.now());
               const size = parseInt(res.headers.get('Content-Length')) || html.length;
               return { name: f.name, title, excerpt, html, url, lastModified, size };
@@ -147,8 +420,14 @@
           container.innerHTML = '<div class="no-docs">No documents found.</div>';
           return;
         }
-        container.innerHTML = this.filtered.map(d => `
-          <div class="doc-card" onclick="app.showDocument('${d.name}')">
+        // create cards with event listeners rather than inline onclick (safer and keeps selection rules)
+        container.innerHTML = '';
+        this.filtered.forEach(d => {
+          const card = document.createElement('div');
+          card.className = 'doc-card';
+          card.tabIndex = 0;
+          card.setAttribute('role','button');
+          card.innerHTML = `
             <h3 class="doc-title">
               <img src="${SVGs.calendar}" alt="Doc" class="icon-img">
               ${d.title}
@@ -158,8 +437,11 @@
               <span>${d.broken ? 'Failed to load' : this.formatDate(d.lastModified)}</span>
               <span>${d.broken ? '' : (Math.round(d.size / 1024) + ' KB')}</span>
             </div>
-          </div>
-        `).join('');
+          `;
+          card.addEventListener('click', () => this.showDocument(d.name));
+          card.addEventListener('keydown', (e)=>{ if (e.key === 'Enter' || e.key === ' ') this.showDocument(d.name); });
+          container.appendChild(card);
+        });
       }
 
       async showDocument(name) {
@@ -178,11 +460,52 @@
 
         const base = new URL(doc.url, window.location.href).pathname.replace(/\/[^/]*$/, '/') || './';
         const text = this.injectBase(doc.html, base);
-        const blob = new Blob([text], { type: 'text/html' });
+
+        // inject additional protection into the blob so loaded doc is also non-selectable and copy-blocked
+        const protectedText = text.replace(/<\/head>/i, `
+          <style>
+            html, body, *{ user-select: none !important; -webkit-user-select:none !important; }
+            input, textarea, select, button { user-select: text !important; -webkit-user-select: text !important; }
+            body { -webkit-touch-callout:none !important; }
+          </style>
+          <script>
+            (function(){
+              document.addEventListener('copy', function(e){ try { e.preventDefault(); if (e.clipboardData) e.clipboardData.setData('text/plain', (Math.random()+1).toString(36).slice(2,80)); }catch(_){}}, true);
+              document.addEventListener('contextmenu', function(e){ e.preventDefault(); }, true);
+              document.addEventListener('selectionchange', function(){ try{ if (document.getSelection && !document.getSelection().isCollapsed) { document.getSelection().removeAllRanges(); } }catch(_){} }, true);
+              // prevent F12 / Ctrl+U in the embedded doc
+              window.addEventListener('keydown', function(e){ if (e.key === 'F12' || (e.ctrlKey && e.key.toUpperCase() === 'U')) { e.preventDefault(); } }, true);
+            })();
+          <\/script>
+        </head>`);
+
+        const blob = new Blob([protectedText], { type: 'text/html' });
         const blobURL = URL.createObjectURL(blob);
-        document.getElementById('content-body').innerHTML = `<iframe class="doc-frame" src="${blobURL}"></iframe>`;
+        const frameHTML = `<iframe class="doc-frame" src="${blobURL}" sandbox="allow-scripts allow-same-origin"></iframe>`;
+        document.getElementById('content-body').innerHTML = frameHTML;
         document.getElementById('content-title').textContent = doc.title;
         document.getElementById('content-meta').textContent = `Last updated: ${this.formatDate(doc.lastModified)} | ${Math.round(doc.size / 1024)} KB`;
+
+        // the iframe is same-origin (blob) and we can harden it after load
+        const iframeEl = document.querySelector('.doc-frame');
+        if (iframeEl) {
+          iframeEl.addEventListener('load', function(){
+            try {
+              // try to apply extra protections from parent side
+              const idoc = iframeEl.contentDocument || iframeEl.contentWindow.document;
+              if (idoc) {
+                const s = idoc.createElement('style');
+                s.innerHTML = `*{user-select:none !important;} input, textarea, select, button{ user-select:text !important; }`;
+                (idoc.head||idoc.documentElement).appendChild(s);
+                idoc.addEventListener('copy', function(e){ try { e.preventDefault(); if (e.clipboardData) e.clipboardData.setData('text/plain', Math.random().toString(36)); } catch(_) {} }, true);
+                idoc.addEventListener('contextmenu', function(e){ e.preventDefault(); }, true);
+                idoc.addEventListener('selectionchange', function(){ try { idoc.getSelection().removeAllRanges(); } catch(_) {} }, true);
+              }
+            } catch (err) {
+              // cross-origin or denied — silent fallback
+            }
+          }, { once: true });
+        }
       }
 
       injectBase(html, base) {
@@ -219,6 +542,15 @@
           this.filtered = this.documents.filter(d => d.title.toLowerCase().includes(q) || d.excerpt.toLowerCase().includes(q));
           this.renderDocuments();
         });
+
+        // ensure that clicking on non-interactive text doesn't create selections
+        document.addEventListener('mousedown', function(e){
+          // allow interactions with inputs and buttons
+          const tag = e.target.tagName;
+          if (['INPUT','TEXTAREA','SELECT','BUTTON'].includes(tag)) return;
+          // prevent starting text selection with mouse drag
+          e.preventDefault && e.preventDefault();
+        }, true);
       }
     }
 
