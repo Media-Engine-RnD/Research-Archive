@@ -5,14 +5,25 @@ on:
     branches:
       - main # Change this to your default branch
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: jekyll/actions/setup-jekyll@v3
-      - run: jekyll build
-      - uses: actions/upload-pages-artifact@v1
+      - uses: actions/checkout@v4
+      - name: Build with Docker
+        run: |
+          docker run \
+          --rm \
+          --volume="${{ github.workspace }}:/srv/jekyll" \
+          --volume="${{ github.workspace }}/_site:/srv/jekyll/_site" \
+          jekyll/builder:latest \
+          jekyll build
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: ./_site
 
@@ -22,12 +33,9 @@ jobs:
     concurrency:
       group: pages-deployment
       cancel-in-progress: true
-    permissions:
-      pages: write
-      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v4
