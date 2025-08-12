@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: jekyll/setup-jekyll@v1
+      - uses: jekyll/actions/setup-jekyll@v3
       - run: jekyll build
       - uses: actions/upload-pages-artifact@v1
         with:
