@@ -36,6 +36,7 @@
       "reference": {
         "file": "GPU Mediapipe Architecture.md",
         "path": "{root_repo}/docs/GPU Mediapipe Architecture.md"
+        }
       },
       {
       "name": "DX11-OpenCV Integration Architecture.html",
@@ -44,6 +45,7 @@
       "reference": {
         "file": "DX11-OpenCV Integration Architecture.md",
         "path": "{root_repo}/docs/DX11-OpenCV Integration Architecture.md"
+        }
       }
     }
   ]
