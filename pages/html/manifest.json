@@ -28,6 +28,15 @@
         "file": "Palm Bounding Box Validator.md",
         "path": "{root_repo}/docs/Palm Bounding Box Validator.md"
       }
+    },
+    {
+      "name": "GPU Mediapipe Architecture.html",
+      "type": "file",
+      "path": "{root_repo}/pages/html/GPU Mediapipe Architecture.html",
+      "reference": {
+        "file": "GPU Mediapipe Architecture.md",
+        "path": "{root_repo}/docs/GPU Mediapipe Architecture.md"
+      }
     }
   ]
 }
