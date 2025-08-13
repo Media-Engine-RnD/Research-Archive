@@ -2,7 +2,7 @@
 source "https://rubygems.org"
 
 # Specify Ruby version (optional but recommended)
-ruby "3.1.0"
+ruby "3.1.1"
 
 # Core Jekyll gem
 gem "jekyll", "~> 4.3.0"
