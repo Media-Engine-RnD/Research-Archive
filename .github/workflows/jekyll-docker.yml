@@ -15,15 +15,107 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build with Docker
+      
+      - name: Build with Docker (Multiple Fallbacks)
         run: |
-          docker run \
-          --rm \
-          --user $(id -u):$(id -g) \
-          --volume="${{ github.workspace }}:/srv/jekyll" \
-          --volume="${{ github.workspace }}/_site:/srv/jekyll/_site" \
-          jekyll/builder:latest \
-          /bin/bash -c "chmod 755 /srv/jekyll && jekyll build"
+          # Function to try building with different approaches
+          build_jekyll() {
+            echo "Attempting Jekyll build with approach: $1"
+            
+            case $1 in
+              "jekyll-minimal")
+                # Approach 1: Use jekyll/minimal which is more reliable
+                docker run \
+                  --rm \
+                  --user $(id -u):$(id -g) \
+                  --volume="${{ github.workspace }}:/srv/jekyll" \
+                  --volume="${{ github.workspace }}/_site:/srv/jekyll/_site" \
+                  jekyll/minimal:latest \
+                  /bin/bash -c "chmod 755 /srv/jekyll && cd /srv/jekyll && jekyll build"
+                ;;
+                
+              "jekyll-builder-fixed")
+                # Approach 2: Use jekyll/builder with explicit path and bundle install
+                docker run \
+                  --rm \
+                  --user $(id -u):$(id -g) \
+                  --volume="${{ github.workspace }}:/srv/jekyll" \
+                  --volume="${{ github.workspace }}/_site:/srv/jekyll/_site" \
+                  jekyll/builder:latest \
+                  /bin/bash -c "
+                    chmod 755 /srv/jekyll && 
+                    cd /srv/jekyll && 
+                    bundle install --retry 3 && 
+                    bundle exec jekyll build
+                  "
+                ;;
+                
+              "ruby-custom")
+                # Approach 3: Use Ruby base image and install Jekyll manually
+                docker run \
+                  --rm \
+                  --user $(id -u):$(id -g) \
+                  --volume="${{ github.workspace }}:/srv/jekyll" \
+                  --volume="${{ github.workspace }}/_site:/srv/jekyll/_site" \
+                  ruby:3.1 \
+                  /bin/bash -c "
+                    cd /srv/jekyll &&
+                    gem install bundler jekyll &&
+                    bundle install --retry 3 &&
+                    bundle exec jekyll build
+                  "
+                ;;
+                
+              "ubuntu-native")
+                # Approach 4: Use Ubuntu and install Ruby/Jekyll natively
+                docker run \
+                  --rm \
+                  --user $(id -u):$(id -g) \
+                  --volume="${{ github.workspace }}:/srv/jekyll" \
+                  --volume="${{ github.workspace }}/_site:/srv/jekyll/_site" \
+                  ubuntu:22.04 \
+                  /bin/bash -c "
+                    apt-get update -qq &&
+                    apt-get install -y ruby-full build-essential zlib1g-dev &&
+                    cd /srv/jekyll &&
+                    gem install bundler jekyll &&
+                    bundle install --retry 3 &&
+                    bundle exec jekyll build
+                  "
+                ;;
+            esac
+          }
+          
+          # Try different approaches in order of preference
+          approaches=("jekyll-minimal" "jekyll-builder-fixed" "ruby-custom" "ubuntu-native")
+          
+          for approach in "${approaches[@]}"; do
+            echo "=== Trying approach: $approach ==="
+            if build_jekyll "$approach"; then
+              echo "✅ Success with approach: $approach"
+              break
+            else
+              echo "❌ Failed with approach: $approach"
+              if [ "$approach" != "ubuntu-native" ]; then
+                echo "Trying next approach..."
+                continue
+              else
+                echo "All approaches failed!"
+                exit 1
+              fi
+            fi
+          done
+          
+      - name: Verify build output
+        run: |
+          if [ -d "_site" ] && [ "$(ls -A _site)" ]; then
+            echo "✅ Build successful - _site directory contains files"
+            ls -la _site/
+          else
+            echo "❌ Build failed - _site directory is empty or doesn't exist"
+            exit 1
+          fi
+          
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./_site
