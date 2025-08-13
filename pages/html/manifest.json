@@ -55,6 +55,15 @@
         "file": "Variable Bone Smoothing - Palm Armature.md",
         "path": "{root_repo}/docs/Variable Bone Smoothing - Palm Armature.md"
         }
+      },
+      {
+      "name": "Variable Bone Smoothing.html",
+      "type": "file",
+      "path": "{root_repo}/pages/html/Variable Bone Smoothing.html",
+      "reference": {
+        "file": "Variable Bone Smoothing.md",
+        "path": "{root_repo}/docs/Variable Bone Smoothing.md"
+        }
       }
   ]
 }
