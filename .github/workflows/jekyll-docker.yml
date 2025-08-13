@@ -1,67 +1,36 @@
-name: Build and Deploy GitHub Pages
+name: Build Jekyll Site
 
 on:
   push:
-    branches: ["main"] # Change if your default branch is different
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+    branches: ["main"]
+  pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Fail fast if config is missing
-      - name: Verify _config exists
+      - name: Fail if _config.yml is missing
         run: |
-          if [ ! -f "_config.yml" ] && [ ! -f "_config.yaml" ]; then
-            echo "❌ No _config.yml or _config.yaml found — cannot build."
+          if [ ! -f "_config.yml" ]; then
+            echo "❌ _config.yml is missing. Jekyll requires this file."
             exit 1
           fi
 
-      # Fail fast if SCSS file exists but is empty
-      - name: Check SCSS file integrity
-        run: |
-          if [ -f "assets/css/style.scss" ]; then
-            if [ ! -s "assets/css/style.scss" ]; then
-              echo "❌ SCSS file exists but is empty — remove it or add content."
-              exit 1
-            fi
-          fi
-
-      # Setup Ruby for Jekyll
-      - name: Setup Ruby
+      - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.1'
+          ruby-version: 3.1
           bundler-cache: true
 
       - name: Install dependencies
         run: |
-          bundle config set --local path 'vendor/bundle'
-          bundle install
+          gem install bundler
+          bundle install --jobs 4 --retry 3
 
       - name: Build site
-        run: bundle exec jekyll build --trace
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./_site
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        run: |
+          bundle exec jekyll build --trace
