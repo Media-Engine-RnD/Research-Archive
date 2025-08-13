@@ -21,13 +21,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect Gemfile
+      - name: Verify Gemfile
         run: |
           if [ ! -f Gemfile ]; then
             echo "::error::Gemfile not found in repository root!"
             exit 1
           fi
-          cat Gemfile
+          echo "✅ Found Gemfile:"
+          head -n 10 Gemfile
 
       - name: Build Jekyll (Docker & Native Fallbacks)
         run: |
@@ -61,24 +62,35 @@ jobs:
                 JEKYLL_ENV=production bundle exec jekyll build --trace
                 ;;
               *)
-                echo "Unknown build mode: $1"
+                echo "::error::Unknown build mode: $1"
                 exit 1
                 ;;
             esac
             echo "::endgroup::"
           }
 
-          # Try these in order
+          success=0
           for method in jekyll-docker jekyll-builder ruby-native; do
             if build_jekyll "$method"; then
+              success=1
               echo "✅ Build succeeded with $method"
-              exit 0
+              break
             fi
             echo "⚠️ Build failed with $method, trying next..."
           done
 
-          echo "::error::All build methods failed."
-          exit 1
+          if [ $success -ne 1 ]; then
+            echo "::error::All build methods failed — no site generated."
+            exit 1
+          fi
+
+          if [ ! -d "_site" ]; then
+            echo "::error::_site directory not found after successful build."
+            exit 1
+          fi
+
+          echo "✅ _site generated:"
+          ls -lah _site
 
       - uses: actions/upload-pages-artifact@v3
         with:
