@@ -13,11 +13,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Fail if _config.yml is missing
+      - name: Ensure _config.yml exists for plugins
         run: |
-          if [ ! -f "_config.yaml" ]; then
-            echo "❌ _config.yaml is missing. Jekyll requires this file."
-            exit 1
+          if [ ! -f "_config.yml" ]; then
+            if [ -f "_config.yaml" ]; then
+              cp _config.yaml _config.yml
+              echo "✅ Copied _config.yaml to _config.yml for Jekyll compatibility."
+            else
+              echo "❌ No _config.yml or _config.yaml found — cannot build."
+              exit 1
+            fi
           fi
 
       - name: Set up Ruby
@@ -32,5 +37,4 @@ jobs:
           bundle install --jobs 4 --retry 3
 
       - name: Build site
-        run: |
-          bundle exec jekyll build --trace
+        run: bundle exec jekyll build --trace
