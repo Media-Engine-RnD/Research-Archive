@@ -10,10 +10,6 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -35,13 +31,14 @@ jobs:
           set -euo pipefail
 
           build_jekyll() {
+            set -euo pipefail
             echo "::group::Attempting build with: $1"
             case "$1" in
               jekyll-docker)
                 docker run --rm \
                   -v "$PWD:/srv/jekyll" \
                   -w /srv/jekyll \
-                  jekyll/jekyll:4.3.3 \
+                  jekyll/jekyll:latest \
                   sh -c "bundle install --jobs 4 --retry 3 && \
                          chown -R jekyll:jekyll /srv/jekyll && \
                          JEKYLL_ENV=production bundle exec jekyll build --trace --destination /srv/jekyll/_site"
@@ -50,7 +47,7 @@ jobs:
                 docker run --rm \
                   -v "$PWD:/srv/jekyll" \
                   -w /srv/jekyll \
-                  jekyll/builder:4.3.3 \
+                  jekyll/builder:latest \
                   sh -c "bundle install --jobs 4 --retry 3 && \
                          chown -R jekyll:jekyll /srv/jekyll && \
                          JEKYLL_ENV=production bundle exec jekyll build --trace --destination /srv/jekyll/_site"
@@ -75,21 +72,17 @@ jobs:
 
           success=0
           for method in jekyll-docker jekyll-builder ruby-native; do
-            if build_jekyll "$method"; then
+            if build_jekyll "$method" && [ -d "_site" ]; then
               success=1
               echo "✅ Build succeeded with $method"
               break
+            else
+              echo "⚠️ Build failed with $method, trying next..."
             fi
-            echo "⚠️ Build failed with $method, trying next..."
           done
 
           if [ $success -ne 1 ]; then
             echo "::error::All build methods failed — no site generated."
-            exit 1
-          fi
-
-          if [ ! -d "_site" ]; then
-            echo "::error::_site directory not found after successful build."
             exit 1
           fi
 
