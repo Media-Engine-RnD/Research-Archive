@@ -1,4 +1,4 @@
-name: Build Jekyll Site with Docker Fallbacks
+name: Build Jekyll Site
 
 on:
   push:
@@ -21,18 +21,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect config file
-        id: config
+      - name: Prepare config for plugins
         run: |
-          if [ -f "_config.yml" ]; then
-            echo "config=_config.yml" >> $GITHUB_OUTPUT
-          elif [ -f "_config.yaml" ]; then
-            echo "config=_config.yaml" >> $GITHUB_OUTPUT
-          else
+          if [ -f "_config.yaml" ] && [ ! -f "_config.yml" ]; then
+            cp _config.yaml _config.yml
+            echo "✅ Copied _config.yaml to _config.yml for plugin compatibility"
+          fi
+          if [ ! -f "_config.yml" ]; then
             echo "::error::No Jekyll config file found (_config.yml or _config.yaml)"
             exit 1
           fi
-          echo "✅ Using config file: $(cat $GITHUB_OUTPUT | grep config= | cut -d= -f2)"
+          echo "✅ Config file ready"
 
       - name: Verify Gemfile
         run: |
@@ -46,7 +45,7 @@ jobs:
       - name: Build Jekyll (Docker & Native Fallbacks)
         run: |
           set -euo pipefail
-          CONFIG_FILE="${{ steps.config.outputs.config }}"
+          CONFIG_FILE="_config.yml"
 
           build_jekyll() {
             set -euo pipefail
