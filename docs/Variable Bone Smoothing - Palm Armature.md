@@ -1,0 +1,2156 @@
+# Variable Bone Smoothing for Palm Armature Systems: Advanced Hand Pose Estimation with MediaPipe
+
+## Abstract
+
+This paper presents a comprehensive framework for Variable Bone Smoothing (VBS) specifically adapted for palm armature and finger bone tracking systems. Unlike full-body pose estimation, hand tracking requires specialized considerations for the intricate biomechanical constraints of finger joints, palm structure, and inter-digital dependencies. We propose a mathematical framework that incorporates finger-specific kinematic models, palm-centric coordinate systems, and adaptive smoothing techniques optimized for the high-frequency, low-amplitude movements characteristic of hand gestures. Our implementation leverages MediaPipe Hand solutions with enhanced temporal filtering algorithms that preserve dexterous motion while eliminating tracking artifacts.
+
+**Keywords:** Hand pose estimation, Palm armature, Finger kinematics, Temporal filtering, MediaPipe, Dexterous manipulation, Biomechanical constraints
+
+## 1. Introduction
+
+### 1.1 Motivation and Problem Statement
+
+Hand pose estimation presents unique challenges compared to full-body skeletal tracking due to several factors:
+
+1. **High Degrees of Freedom**: Human hands contain 27 bones with 21 degrees of freedom
+2. **Self-Occlusion**: Fingers frequently occlude each other during natural gestures
+3. **Fine Motor Control**: Precise tracking of small-scale movements is essential
+4. **Biomechanical Constraints**: Finger joints have specific angular limitations and coupling behaviors
+5. **Real-time Requirements**: Applications like virtual reality and augmented reality demand low-latency processing
+
+Traditional pose estimation smoothing techniques fail to address the specialized requirements of hand tracking, particularly the preservation of fine motor control while maintaining stability in noisy tracking conditions.
+
+### 1.2 Contribution Overview
+
+This work introduces a palm-centric Variable Bone Smoothing framework with the following novel contributions:
+
+- **Palm-Relative Coordinate System**: A coordinate transformation that uses the palm as a stable reference frame
+- **Finger-Specific Kinematic Models**: Individual smoothing parameters for each finger based on biomechanical properties
+- **Hierarchical Bone Dependencies**: Parent-child relationships in the finger bone hierarchy influence smoothing decisions
+- **Gesture-Aware Adaptive Filtering**: Motion classification to adjust smoothing parameters based on detected gesture types
+
+## 2. Hand Anatomy and Kinematic Modeling
+
+### 2.1 Anatomical Foundation
+
+The human hand consists of three primary anatomical regions:
+
+```mermaid
+graph TD
+    A[Hand Structure] --> B[Carpus - 8 bones]
+    A --> C[Metacarpus - 5 bones]
+    A --> D[Phalanges - 14 bones]
+    
+    B --> B1[Scaphoid]
+    B --> B2[Lunate]
+    B --> B3[Triquetrum]
+    B --> B4[Pisiform]
+    B --> B5[Trapezium]
+    B --> B6[Trapezoid]
+    B --> B7[Capitate]
+    B --> B8[Hamate]
+    
+    C --> C1[Thumb Metacarpal]
+    C --> C2[Index Metacarpal]
+    C --> C3[Middle Metacarpal]
+    C --> C4[Ring Metacarpal]
+    C --> C5[Pinky Metacarpal]
+    
+    D --> D1[Thumb - 2 phalanges]
+    D --> D2[Index - 3 phalanges]
+    D --> D3[Middle - 3 phalanges]
+    D --> D4[Ring - 3 phalanges]
+    D --> D5[Pinky - 3 phalanges]
+```
+
+### 2.2 MediaPipe Hand Landmark Mapping
+
+MediaPipe provides 21 hand landmarks corresponding to key anatomical points:
+
+$$\mathcal{L} = \{l_0, l_1, ..., l_{20}\}$$
+
+Where each landmark $l_i$ represents a 3D position $(x_i, y_i, z_i)$ in world coordinates.
+
+```mermaid
+graph TD
+    A[Wrist - 0] --> B[Thumb Chain]
+    A --> C[Index Chain]
+    A --> D[Middle Chain]
+    A --> E[Ring Chain]
+    A --> F[Pinky Chain]
+    
+    B --> B1[CMC - 1]
+    B1 --> B2[MCP - 2]
+    B2 --> B3[IP - 3]
+    B3 --> B4[TIP - 4]
+    
+    C --> C1[MCP - 5]
+    C1 --> C2[PIP - 6]
+    C2 --> C3[DIP - 7]
+    C3 --> C4[TIP - 8]
+    
+    D --> D1[MCP - 9]
+    D1 --> D2[PIP - 10]
+    D2 --> D3[DIP - 11]
+    D3 --> D4[TIP - 12]
+    
+    E --> E1[MCP - 13]
+    E1 --> E2[PIP - 14]
+    E2 --> E3[DIP - 15]
+    E3 --> E4[TIP - 16]
+    
+    F --> F1[MCP - 17]
+    F1 --> F2[PIP - 18]
+    F2 --> F3[DIP - 19]
+    F3 --> F4[TIP - 20]
+```
+
+### 2.3 Palm-Centric Coordinate System
+
+We establish a palm-centric coordinate system using three key landmarks:
+
+$$\mathbf{P}_{palm} = \frac{1}{4}(\mathbf{l}_5 + \mathbf{l}_9 + \mathbf{l}_{13} + \mathbf{l}_{17})$$
+
+The palm coordinate frame $\{\mathbf{X}_p, \mathbf{Y}_p, \mathbf{Z}_p\}$ is defined as:
+
+$$\mathbf{Y}_p = \text{normalize}(\mathbf{l}_9 - \mathbf{l}_{17})$$
+
+$$\mathbf{Z}_p = \text{normalize}((\mathbf{l}_0 - \mathbf{P}_{palm}) \times \mathbf{Y}_p)$$
+
+$$\mathbf{X}_p = \mathbf{Y}_p \times \mathbf{Z}_p$$
+
+This coordinate system provides stability against global hand rotation and translation.
+
+## 3. Mathematical Framework for Palm Armature Smoothing
+
+### 3.1 Hierarchical Bone Representation
+
+Each finger is modeled as a kinematic chain with bone vectors:
+
+$$\mathbf{b}_{i,j} = \mathbf{l}_{j+1} - \mathbf{l}_j$$
+
+Where $i$ denotes the finger index and $j$ represents the bone segment within the finger.
+
+### 3.2 Palm-Relative Position Transform
+
+All landmark positions are transformed to palm-relative coordinates:
+
+$$\mathbf{l}'_i = \mathbf{T}_{palm}^{-1} \cdot (\mathbf{l}_i - \mathbf{P}_{palm})$$
+
+Where $\mathbf{T}_{palm}$ is the transformation matrix from world to palm coordinates:
+
+$$\mathbf{T}_{palm} = \begin{bmatrix}
+\mathbf{X}_p^T \\
+\mathbf{Y}_p^T \\
+\mathbf{Z}_p^T
+\end{bmatrix}$$
+
+### 3.3 Adaptive Smoothing for Finger Joints
+
+The adaptive smoothing factor for each landmark incorporates finger-specific characteristics:
+
+$$\alpha_{i}(t) = \alpha_{base} \cdot w_{finger}(i) \cdot w_{velocity}(t) \cdot w_{confidence}(t) \cdot w_{hierarchy}(i,t)$$
+
+#### 3.3.1 Finger-Specific Weight
+
+Different fingers have varying mobility and noise characteristics:
+
+$$w_{finger}(i) = \begin{cases}
+0.8 & \text{if } i \in \text{thumb} \\
+0.9 & \text{if } i \in \text{index} \\
+1.0 & \text{if } i \in \text{middle} \\
+1.1 & \text{if } i \in \text{ring} \\
+1.2 & \text{if } i \in \text{pinky}
+\end{cases}$$
+
+#### 3.3.2 Hierarchical Weight Function
+
+Parent joints influence child joint smoothing:
+
+$$w_{hierarchy}(i,t) = \exp\left(-\beta \sum_{p \in \text{parents}(i)} ||\Delta\mathbf{l}_p(t)||^2\right)$$
+
+Where $\Delta\mathbf{l}_p(t) = \mathbf{l}_p(t) - \mathbf{l}_p(t-1)$ and $\beta$ controls hierarchical influence strength.
+
+### 3.4 Biomechanical Constraint Integration
+
+#### 3.4.1 Joint Angle Constraints
+
+Finger joint angles are constrained within anatomical limits:
+
+$$\theta_{i,j} \in [\theta_{i,j}^{min}, \theta_{i,j}^{max}]$$
+
+The joint angle is computed as:
+
+$$\theta_{i,j} = \arccos\left(\frac{\mathbf{b}_{i,j-1} \cdot \mathbf{b}_{i,j}}{||\mathbf{b}_{i,j-1}|| \cdot ||\mathbf{b}_{i,j}||}\right)$$
+
+#### 3.4.2 Bone Length Preservation
+
+Natural bone lengths are maintained through constraint projection:
+
+$$\mathbf{b}_{i,j}^{constrained} = \mathbf{b}_{i,j} \cdot \frac{L_{i,j}^{natural}}{||\mathbf{b}_{i,j}||}$$
+
+Where $L_{i,j}^{natural}$ is the expected bone length for finger $i$, bone segment $j$.
+
+## 4. System Architecture
+
+```mermaid
+graph TB
+    A[Video Frame] --> B[MediaPipe Hand Detection]
+    B --> C[21 Hand Landmarks]
+    C --> D[Palm Coordinate Transform]
+    D --> E[Confidence Extraction]
+    
+    E --> F[Finger Classification]
+    F --> G[Hierarchical Weight Computation]
+    G --> H[Velocity Analysis]
+    H --> I[Adaptive Alpha Calculation]
+    
+    I --> J[Variable Bone Smoothing]
+    J --> K[Biomechanical Constraints]
+    K --> L[Joint Angle Validation]
+    L --> M[Bone Length Correction]
+    
+    M --> N[Palm-to-World Transform]
+    N --> O[Smoothed Hand Pose]
+    
+    subgraph "Smoothing Pipeline"
+        J --> J1[EMA Filter]
+        J1 --> J2[Outlier Detection]
+        J2 --> J3[Stability Analysis]
+        J3 --> K
+    end
+    
+    subgraph "Constraint Pipeline"
+        K --> K1[Angle Constraints]
+        K --> K2[Length Constraints]
+        K --> K3[Collision Detection]
+    end
+```
+
+## 5. Implementation Details
+
+### 5.1 Palm Armature Smoother Class
+
+```python
+import cv2
+import numpy as np
+import mediapipe as mp
+from scipy.spatial.transform import Rotation
+from collections import deque
+import math
+
+class PalmArmatureSmoother:
+    def __init__(self, alpha_base=0.6, window_size=8, confidence_threshold=0.7):
+        """
+        Initialize Palm Armature Variable Bone Smoother
+        
+        Args:
+            alpha_base: Base smoothing factor optimized for hand tracking
+            window_size: History window for stability analysis
+            confidence_threshold: Minimum confidence for reliable hand detection
+        """
+        self.alpha_base = alpha_base
+        self.window_size = window_size
+        self.confidence_threshold = confidence_threshold
+        
+        # Initialize MediaPipe Hand
+        self.mp_hands = mp.solutions.hands
+        self.hands = self.mp_hands.Hands(
+            static_image_mode=False,
+            max_num_hands=2,
+            model_complexity=1,
+            min_detection_confidence=0.7,
+            min_tracking_confidence=0.5
+        )
+        
+        # Hand landmark indices grouped by finger
+        self.finger_indices = {
+            'thumb': [1, 2, 3, 4],
+            'index': [5, 6, 7, 8],
+            'middle': [9, 10, 11, 12],
+            'ring': [13, 14, 15, 16],
+            'pinky': [17, 18, 19, 20]
+        }
+        
+        # Bone connections for each finger
+        self.bone_connections = {
+            'thumb': [(1, 2), (2, 3), (3, 4)],
+            'index': [(5, 6), (6, 7), (7, 8)],
+            'middle': [(9, 10), (10, 11), (11, 12)],
+            'ring': [(13, 14), (14, 15), (15, 16)],
+            'pinky': [(17, 18), (18, 19), (19, 20)]
+        }
+        
+        # Expected bone length ratios (relative to middle finger)
+        self.bone_length_ratios = {
+            'thumb': [0.8, 0.7, 0.6],
+            'index': [0.9, 0.8, 0.7],
+            'middle': [1.0, 1.0, 1.0],  # Reference finger
+            'ring': [0.95, 0.9, 0.8],
+            'pinky': [0.7, 0.6, 0.5]
+        }
+        
+        # Finger-specific smoothing weights
+        self.finger_weights = {
+            'thumb': 0.8,    # Most mobile, less smoothing
+            'index': 0.9,    # High precision required
+            'middle': 1.0,   # Baseline
+            'ring': 1.1,     # Slightly more smoothing
+            'pinky': 1.2     # Most smoothing due to coupling
+        }
+        
+        # Joint angle constraints (degrees)
+        self.joint_constraints = {
+            'mcp': {'min': -10, 'max': 90},   # Metacarpophalangeal
+            'pip': {'min': 0, 'max': 110},    # Proximal interphalangeal
+            'dip': {'min': 0, 'max': 80},     # Distal interphalangeal
+            'thumb_ip': {'min': -15, 'max': 90}  # Thumb interphalangeal
+        }
+        
+        # Smoothing state for each hand
+        self.hand_states = {}
+        
+    def get_finger_name(self, landmark_id):
+        """Get finger name for a given landmark ID"""
+        for finger, indices in self.finger_indices.items():
+            if landmark_id in indices:
+                return finger
+        return 'wrist' if landmark_id == 0 else 'unknown'
+```
+
+### 5.2 Palm Coordinate System Establishment
+
+```python
+    def establish_palm_coordinate_system(self, landmarks):
+        """
+        Establish palm-centric coordinate system
+        
+        Args:
+            landmarks: List of 21 hand landmarks
+            
+        Returns:
+            transformation_matrix: 4x4 transformation matrix to palm coordinates
+            palm_center: 3D position of palm center
+        """
+        # Define key landmarks
+        wrist = np.array([landmarks[0].x, landmarks[0].y, landmarks[0].z])
+        mcp_index = np.array([landmarks[5].x, landmarks[5].y, landmarks[5].z])
+        mcp_middle = np.array([landmarks[9].x, landmarks[9].y, landmarks[9].z])
+        mcp_ring = np.array([landmarks[13].x, landmarks[13].y, landmarks[13].z])
+        mcp_pinky = np.array([landmarks[17].x, landmarks[17].y, landmarks[17].z])
+        
+        # Calculate palm center
+        palm_center = 0.25 * (mcp_index + mcp_middle + mcp_ring + mcp_pinky)
+        
+        # Define coordinate axes
+        # Y-axis: from pinky MCP to index MCP
+        y_axis = mcp_index - mcp_pinky
+        y_axis = y_axis / np.linalg.norm(y_axis)
+        
+        # Temporary Z direction: from palm center to wrist
+        temp_z = wrist - palm_center
+        temp_z = temp_z / np.linalg.norm(temp_z)
+        
+        # X-axis: perpendicular to Y and temp_Z
+        x_axis = np.cross(y_axis, temp_z)
+        x_axis = x_axis / np.linalg.norm(x_axis)
+        
+        # True Z-axis: perpendicular to X and Y
+        z_axis = np.cross(x_axis, y_axis)
+        z_axis = z_axis / np.linalg.norm(z_axis)
+        
+        # Construct transformation matrix
+        transformation_matrix = np.eye(4)
+        transformation_matrix[:3, 0] = x_axis
+        transformation_matrix[:3, 1] = y_axis
+        transformation_matrix[:3, 2] = z_axis
+        transformation_matrix[:3, 3] = palm_center
+        
+        return transformation_matrix, palm_center
+```
+
+### 5.3 Hierarchical Weight Computation
+
+```python
+    def compute_hierarchical_weights(self, landmarks, hand_id, timestamp):
+        """
+        Compute hierarchical weights based on parent joint stability
+        
+        Args:
+            landmarks: Current hand landmarks
+            hand_id: Identifier for the hand being processed
+            timestamp: Current frame timestamp
+            
+        Returns:
+            Dictionary of hierarchical weights for each landmark
+        """
+        hierarchical_weights = {}
+        
+        if hand_id not in self.hand_states:
+            # Initialize with uniform weights
+            return {i: 1.0 for i in range(21)}
+        
+        prev_landmarks = self.hand_states[hand_id].get('prev_landmarks')
+        if prev_landmarks is None:
+            return {i: 1.0 for i in range(21)}
+        
+        # Calculate parent joint motion influence
+        beta = 0.5  # Hierarchical influence strength
+        
+        for finger, indices in self.finger_indices.items():
+            for i, landmark_id in enumerate(indices):
+                current_pos = np.array([landmarks[landmark_id].x, 
+                                      landmarks[landmark_id].y, 
+                                      landmarks[landmark_id].z])
+                
+                # Calculate influence from parent joints
+                parent_motion_sum = 0.0
+                
+                if i > 0:  # Not the base joint
+                    # Influence from previous joint in the chain
+                    parent_id = indices[i-1]
+                    parent_current = np.array([landmarks[parent_id].x,
+                                             landmarks[parent_id].y,
+                                             landmarks[parent_id].z])
+                    parent_prev = np.array([prev_landmarks[parent_id].x,
+                                          prev_landmarks[parent_id].y,
+                                          prev_landmarks[parent_id].z])
+                    parent_motion = np.linalg.norm(parent_current - parent_prev)
+                    parent_motion_sum += parent_motion
+                
+                # Influence from wrist motion
+                wrist_current = np.array([landmarks[0].x, landmarks[0].y, landmarks[0].z])
+                wrist_prev = np.array([prev_landmarks[0].x, prev_landmarks[0].y, prev_landmarks[0].z])
+                wrist_motion = np.linalg.norm(wrist_current - wrist_prev)
+                parent_motion_sum += 0.3 * wrist_motion  # Reduced wrist influence
+                
+                # Calculate hierarchical weight
+                w_hierarchy = math.exp(-beta * parent_motion_sum)
+                hierarchical_weights[landmark_id] = w_hierarchy
+        
+        # Wrist has no parent influence
+        hierarchical_weights[0] = 1.0
+        
+        return hierarchical_weights
+```
+
+### 5.4 Biomechanical Constraint Application
+
+```python
+    def apply_biomechanical_constraints(self, landmarks, hand_id):
+        """
+        Apply biomechanical constraints to hand pose
+        
+        Args:
+            landmarks: Current hand landmarks
+            hand_id: Hand identifier
+            
+        Returns:
+            Constrained landmarks
+        """
+        constrained_landmarks = landmarks.copy()
+        
+        # Apply joint angle constraints
+        constrained_landmarks = self._apply_joint_angle_constraints(constrained_landmarks)
+        
+        # Apply bone length constraints
+        constrained_landmarks = self._apply_bone_length_constraints(constrained_landmarks, hand_id)
+        
+        # Apply finger coupling constraints
+        constrained_landmarks = self._apply_finger_coupling_constraints(constrained_landmarks)
+        
+        return constrained_landmarks
+    
+    def _apply_joint_angle_constraints(self, landmarks):
+        """Apply anatomical joint angle constraints"""
+        constrained = landmarks.copy()
+        
+        for finger, bone_pairs in self.bone_connections.items():
+            for i, (start_idx, end_idx) in enumerate(bone_pairs):
+                if i == 0:  # MCP joint
+                    joint_type = 'mcp'
+                elif finger == 'thumb' and i == 2:  # Thumb IP
+                    joint_type = 'thumb_ip'
+                elif i == 1:  # PIP joint
+                    joint_type = 'pip'
+                else:  # DIP joint
+                    joint_type = 'dip'
+                
+                # Calculate current joint angle
+                if i > 0:  # Not the first bone
+                    prev_bone_end = bone_pairs[i-1][1]
+                    bone_1 = np.array([landmarks[start_idx].x - landmarks[prev_bone_end].x,
+                                     landmarks[start_idx].y - landmarks[prev_bone_end].y,
+                                     landmarks[start_idx].z - landmarks[prev_bone_end].z])
+                else:
+                    # Use palm reference for MCP joints
+                    bone_1 = np.array([landmarks[start_idx].x - landmarks[0].x,
+                                     landmarks[start_idx].y - landmarks[0].y,
+                                     landmarks[start_idx].z - landmarks[0].z])
+                
+                bone_2 = np.array([landmarks[end_idx].x - landmarks[start_idx].x,
+                                 landmarks[end_idx].y - landmarks[start_idx].y,
+                                 landmarks[end_idx].z - landmarks[start_idx].z])
+                
+                # Calculate angle
+                cos_angle = np.dot(bone_1, bone_2) / (np.linalg.norm(bone_1) * np.linalg.norm(bone_2))
+                cos_angle = np.clip(cos_angle, -1.0, 1.0)
+                angle_rad = np.arccos(cos_angle)
+                angle_deg = np.degrees(angle_rad)
+                
+                # Apply constraints
+                constraints = self.joint_constraints[joint_type]
+                if angle_deg < constraints['min']:
+                    # Adjust end position
+                    target_angle = np.radians(constraints['min'])
+                    self._adjust_joint_angle(constrained, start_idx, end_idx, target_angle, bone_1)
+                elif angle_deg > constraints['max']:
+                    target_angle = np.radians(constraints['max'])
+                    self._adjust_joint_angle(constrained, start_idx, end_idx, target_angle, bone_1)
+        
+        return constrained
+    
+    def _apply_bone_length_constraints(self, landmarks, hand_id):
+        """Apply bone length preservation constraints"""
+        constrained = landmarks.copy()
+        
+        # Get reference bone lengths from history
+        if hand_id in self.hand_states and 'reference_lengths' in self.hand_states[hand_id]:
+            reference_lengths = self.hand_states[hand_id]['reference_lengths']
+        else:
+            # Calculate reference lengths from current frame
+            reference_lengths = self._calculate_reference_lengths(landmarks)
+            if hand_id not in self.hand_states:
+                self.hand_states[hand_id] = {}
+            self.hand_states[hand_id]['reference_lengths'] = reference_lengths
+        
+        # Apply length constraints
+        for finger, bone_pairs in self.bone_connections.items():
+            for i, (start_idx, end_idx) in enumerate(bone_pairs):
+                current_vector = np.array([landmarks[end_idx].x - landmarks[start_idx].x,
+                                         landmarks[end_idx].y - landmarks[start_idx].y,
+                                         landmarks[end_idx].z - landmarks[start_idx].z])
+                current_length = np.linalg.norm(current_vector)
+                
+                bone_key = f"{finger}_{i}"
+                if bone_key in reference_lengths:
+                    reference_length = reference_lengths[bone_key]
+                    
+                    # Allow 15% deviation from reference length
+                    length_ratio = current_length / reference_length
+                    if abs(length_ratio - 1.0) > 0.15:
+                        # Correct the length
+                        corrected_vector = current_vector * (reference_length / current_length)
+                        constrained[end_idx].x = landmarks[start_idx].x + corrected_vector[0]
+                        constrained[end_idx].y = landmarks[start_idx].y + corrected_vector[1]
+                        constrained[end_idx].z = landmarks[start_idx].z + corrected_vector[2]
+        
+        return constrained
+```
+
+### 5.5 Main Processing Pipeline
+
+```python
+    def process_frame(self, image, timestamp):
+        """
+        Process frame with palm armature smoothing
+        
+        Args:
+            image: Input BGR image
+            timestamp: Frame timestamp
+            
+        Returns:
+            Dictionary containing smoothed hand poses and visualization
+        """
+        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        results = self.hands.process(rgb_image)
+        
+        processed_hands = {}
+        vis_image = image.copy()
+        
+        if results.multi_hand_landmarks:
+            for hand_idx, hand_landmarks in enumerate(results.multi_hand_landmarks):
+                hand_id = f"hand_{hand_idx}"
+                
+                # Establish palm coordinate system
+                transform_matrix, palm_center = self.establish_palm_coordinate_system(hand_landmarks.landmark)
+                
+                # Transform to palm-relative coordinates
+                palm_relative_landmarks = self._transform_to_palm_coordinates(
+                    hand_landmarks.landmark, transform_matrix, palm_center)
+                
+                # Compute confidence scores
+                confidence_scores = self._extract_confidence_scores(results, hand_idx)
+                
+                # Apply variable smoothing
+                smoothed_landmarks = self._apply_variable_smoothing(
+                    palm_relative_landmarks, hand_id, timestamp, confidence_scores)
+                
+                # Apply biomechanical constraints
+                constrained_landmarks = self.apply_biomechanical_constraints(
+                    smoothed_landmarks, hand_id)
+                
+                # Transform back to world coordinates
+                world_landmarks = self._transform_to_world_coordinates(
+                    constrained_landmarks, transform_matrix, palm_center)
+                
+                processed_hands[hand_id] = {
+                    'landmarks': world_landmarks,
+                    'palm_center': palm_center,
+                    'confidence': confidence_scores
+                }
+                
+                # Draw visualization
+                self._draw_hand_landmarks(vis_image, world_landmarks, hand_idx)
+        
+        return processed_hands, vis_image
+    
+    def _apply_variable_smoothing(self, landmarks, hand_id, timestamp, confidence_scores):
+        """Apply variable bone smoothing to landmarks"""
+        if hand_id not in self.hand_states:
+            self.hand_states[hand_id] = {
+                'smoothed_landmarks': landmarks.copy(),
+                'landmark_history': deque(maxlen=self.window_size),
+                'velocity_history': deque(maxlen=self.window_size),
+                'prev_landmarks': None
+            }
+            return landmarks
+        
+        state = self.hand_states[hand_id]
+        prev_smoothed = state['smoothed_landmarks']
+        
+        # Compute hierarchical weights
+        hierarchical_weights = self.compute_hierarchical_weights(landmarks, hand_id, timestamp)
+        
+        smoothed_landmarks = landmarks.copy()
+        
+        for i in range(21):
+            current_pos = np.array([landmarks[i].x, landmarks[i].y, landmarks[i].z])
+            
+            if state['prev_landmarks'] is not None:
+                prev_pos = np.array([state['prev_landmarks'][i].x,
+                                   state['prev_landmarks'][i].y,
+                                   state['prev_landmarks'][i].z])
+                
+                # Calculate velocity
+                velocity = np.linalg.norm(current_pos - prev_pos)
+                
+                # Compute adaptive alpha
+                finger = self.get_finger_name(i)
+                w_finger = self.finger_weights.get(finger, 1.0)
+                w_hierarchy = hierarchical_weights.get(i, 1.0)
+                w_velocity = math.exp(-(velocity**2) / (2 * 0.01**2))  # Sigma_v = 0.01 for hands
+                w_confidence = confidence_scores.get(i, 1.0)
+                
+                alpha = self.alpha_base * w_finger * w_hierarchy * w_velocity * w_confidence
+                alpha = np.clip(alpha, 0.1, 0.95)
+                
+                # Apply exponential moving average
+                prev_smoothed_pos = np.array([prev_smoothed[i].x, prev_smoothed[i].y, prev_smoothed[i].z])
+                smoothed_pos = (1 - alpha) * prev_smoothed_pos + alpha * current_pos
+                
+                smoothed_landmarks[i].x = smoothed_pos[0]
+                smoothed_landmarks[i].y = smoothed_pos[1]
+                smoothed_landmarks[i].z = smoothed_pos[2]
+        
+        # Update state
+        state['smoothed_landmarks'] = smoothed_landmarks
+        state['prev_landmarks'] = landmarks
+        
+        return smoothed
+
+#### 6.3.2 GPU Acceleration for Multi-Hand Scenarios
+
+```python
+import cupy as cp
+
+class GPUPalmSmoother:
+    def __init__(self):
+        """GPU-accelerated palm smoothing for multiple hands"""
+        self.smoothing_kernel = cp.ElementwiseKernel(
+            'float32 current, float32 previous, float32 alpha',
+            'float32 smoothed',
+            'smoothed = (1.0f - alpha) * previous + alpha * current',
+            'palm_smooth_kernel'
+        )
+        
+        self.constraint_kernel = cp.ReductionKernel(
+            'float32 x, float32 y, float32 z',
+            'float32 length',
+            'x*x + y*y + z*z',
+            'a + b',
+            'length = sqrtf(a)',
+            '0',
+            'bone_length_kernel'
+        )
+    
+    def smooth_multiple_hands(self, hands_data, alphas):
+        """
+        GPU-accelerated smoothing for multiple hands
+        
+        Args:
+            hands_data: [N_hands, 21, 3] array of hand landmark positions
+            alphas: [N_hands, 21] array of smoothing factors
+            
+        Returns:
+            Smoothed hand positions
+        """
+        hands_gpu = cp.asarray(hands_data['current'])
+        prev_gpu = cp.asarray(hands_data['previous'])
+        alphas_gpu = cp.asarray(alphas)
+        
+        # Reshape for element-wise operation
+        hands_flat = hands_gpu.reshape(-1)
+        prev_flat = prev_gpu.reshape(-1)
+        alphas_flat = cp.repeat(alphas_gpu.reshape(-1), 3)
+        
+        # Apply smoothing
+        smoothed_flat = self.smoothing_kernel(hands_flat, prev_flat, alphas_flat)
+        
+        # Reshape back
+        smoothed = smoothed_flat.reshape(hands_gpu.shape)
+        
+        return cp.asnumpy(smoothed)
+```
+
+### 6.4 Memory Management Optimization
+
+```python
+class MemoryEfficientPalmSmoother:
+    def __init__(self, max_hands=4, window_size=8):
+        """Memory-efficient implementation with circular buffers"""
+        self.max_hands = max_hands
+        self.window_size = window_size
+        
+        # Pre-allocate memory pools
+        self.position_pool = np.zeros((max_hands, 21, 3), dtype=np.float32)
+        self.alpha_pool = np.zeros((max_hands, 21), dtype=np.float32)
+        self.history_pool = np.zeros((max_hands, window_size, 21, 3), dtype=np.float32)
+        
+        # Circular buffer indices
+        self.buffer_indices = {}
+        
+    def efficient_smooth(self, hand_id, positions, alphas):
+        """Memory-efficient smoothing using pre-allocated pools"""
+        if hand_id >= self.max_hands:
+            raise ValueError(f"Hand ID {hand_id} exceeds maximum {self.max_hands}")
+        
+        # Use memory pool
+        current_pos = self.position_pool[hand_id]
+        current_pos[:] = positions
+        
+        current_alpha = self.alpha_pool[hand_id]
+        current_alpha[:] = alphas
+        
+        # Circular buffer for history
+        if hand_id not in self.buffer_indices:
+            self.buffer_indices[hand_id] = 0
+        
+        buffer_idx = self.buffer_indices[hand_id]
+        self.history_pool[hand_id, buffer_idx] = current_pos
+        
+        # Apply smoothing using vectorized operations
+        if buffer_idx > 0:
+            prev_idx = (buffer_idx - 1) % self.window_size
+            prev_pos = self.history_pool[hand_id, prev_idx]
+            
+            smoothed = (1 - current_alpha[:, np.newaxis]) * prev_pos + \
+                      current_alpha[:, np.newaxis] * current_pos
+        else:
+            smoothed = current_pos.copy()
+        
+        # Update buffer index
+        self.buffer_indices[hand_id] = (buffer_idx + 1) % self.window_size
+        
+        return smoothed
+```
+
+## 7. Advanced Features and Extensions
+
+### 7.1 Gesture-Aware Adaptive Filtering
+
+```python
+class GestureAwarePalmSmoother(PalmArmatureSmoother):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Gesture classification parameters
+        self.gesture_classifier = self._initialize_gesture_classifier()
+        self.gesture_smoothing_params = {
+            'static': {'alpha_multiplier': 1.5, 'confidence_boost': 0.1},
+            'dynamic': {'alpha_multiplier': 0.7, 'confidence_boost': -0.05},
+            'precision': {'alpha_multiplier': 0.5, 'confidence_boost': 0.15},
+            'coarse': {'alpha_multiplier': 1.2, 'confidence_boost': 0.0}
+        }
+    
+    def _initialize_gesture_classifier(self):
+        """Initialize simple gesture classifier based on hand motion patterns"""
+        return {
+            'velocity_threshold_static': 0.01,
+            'velocity_threshold_dynamic': 0.05,
+            'precision_finger_spread_threshold': 0.3,
+            'coarse_finger_curl_threshold': 0.7
+        }
+    
+    def classify_gesture_type(self, landmarks, hand_id, timestamp):
+        """
+        Classify current gesture type based on hand configuration and motion
+        
+        Args:
+            landmarks: Current hand landmarks
+            hand_id: Hand identifier
+            timestamp: Current timestamp
+            
+        Returns:
+            Gesture type: 'static', 'dynamic', 'precision', or 'coarse'
+        """
+        # Calculate overall hand velocity
+        if hand_id in self.hand_states and 'prev_landmarks' in self.hand_states[hand_id]:
+            prev_landmarks = self.hand_states[hand_id]['prev_landmarks']
+            if prev_landmarks is not None:
+                velocities = []
+                for i in range(21):
+                    curr = np.array([landmarks[i].x, landmarks[i].y, landmarks[i].z])
+                    prev = np.array([prev_landmarks[i].x, prev_landmarks[i].y, prev_landmarks[i].z])
+                    velocities.append(np.linalg.norm(curr - prev))
+                
+                avg_velocity = np.mean(velocities)
+                max_velocity = np.max(velocities)
+                
+                # Classify based on motion characteristics
+                if avg_velocity < self.gesture_classifier['velocity_threshold_static']:
+                    return 'static'
+                elif max_velocity > self.gesture_classifier['velocity_threshold_dynamic']:
+                    return 'dynamic'
+                else:
+                    # Check finger configuration for precision/coarse classification
+                    finger_spread = self._calculate_finger_spread(landmarks)
+                    if finger_spread > self.gesture_classifier['precision_finger_spread_threshold']:
+                        return 'precision'
+                    else:
+                        return 'coarse'
+        
+        return 'dynamic'  # Default
+    
+    def _calculate_finger_spread(self, landmarks):
+        """Calculate finger spread as a measure of hand openness"""
+        # Calculate distances between fingertips
+        fingertip_indices = [4, 8, 12, 16, 20]  # Thumb, Index, Middle, Ring, Pinky tips
+        positions = []
+        
+        for idx in fingertip_indices:
+            positions.append(np.array([landmarks[idx].x, landmarks[idx].y, landmarks[idx].z]))
+        
+        # Calculate average pairwise distance
+        distances = []
+        for i in range(len(positions)):
+            for j in range(i+1, len(positions)):
+                distances.append(np.linalg.norm(positions[i] - positions[j]))
+        
+        return np.mean(distances)
+    
+    def apply_gesture_aware_smoothing(self, landmarks, hand_id, timestamp, base_confidence):
+        """Apply gesture-aware smoothing modifications"""
+        gesture_type = self.classify_gesture_type(landmarks, hand_id, timestamp)
+        params = self.gesture_smoothing_params[gesture_type]
+        
+        # Modify base smoothing parameters
+        modified_alpha_base = self.alpha_base * params['alpha_multiplier']
+        modified_confidence = np.clip(base_confidence + params['confidence_boost'], 0.0, 1.0)
+        
+        # Store gesture information
+        if hand_id not in self.hand_states:
+            self.hand_states[hand_id] = {}
+        self.hand_states[hand_id]['current_gesture'] = gesture_type
+        
+        return modified_alpha_base, modified_confidence
+```
+
+### 7.2 Multi-Scale Temporal Filtering
+
+```python
+class MultiScalePalmSmoother(PalmArmatureSmoother):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Multi-scale parameters
+        self.scales = {
+            'fine': {'window': 3, 'alpha': 0.3, 'weight': 0.6},
+            'medium': {'window': 8, 'alpha': 0.6, 'weight': 0.3},
+            'coarse': {'window': 15, 'alpha': 0.8, 'weight': 0.1}
+        }
+        
+        # Separate smoothing buffers for each scale
+        self.scale_buffers = {}
+    
+    def multi_scale_smooth(self, landmarks, hand_id, timestamp):
+        """
+        Apply multi-scale temporal filtering
+        
+        Args:
+            landmarks: Current hand landmarks
+            hand_id: Hand identifier
+            timestamp: Current timestamp
+            
+        Returns:
+            Multi-scale smoothed landmarks
+        """
+        if hand_id not in self.scale_buffers:
+            self.scale_buffers[hand_id] = {
+                scale: deque(maxlen=config['window']) 
+                for scale, config in self.scales.items()
+            }
+        
+        buffers = self.scale_buffers[hand_id]
+        
+        # Convert landmarks to numpy array
+        current_positions = np.array([[lm.x, lm.y, lm.z] for lm in landmarks])
+        
+        # Add to all scale buffers
+        for scale in self.scales:
+            buffers[scale].append(current_positions.copy())
+        
+        # Compute smoothed positions for each scale
+        scale_results = {}
+        for scale, config in self.scales.items():
+            if len(buffers[scale]) > 1:
+                # Apply exponential moving average for this scale
+                alpha = config['alpha']
+                prev_positions = buffers[scale][-2]
+                smoothed = (1 - alpha) * prev_positions + alpha * current_positions
+                scale_results[scale] = smoothed
+            else:
+                scale_results[scale] = current_positions
+        
+        # Combine scales with weighted average
+        final_positions = np.zeros_like(current_positions)
+        total_weight = sum(config['weight'] for config in self.scales.values())
+        
+        for scale, config in self.scales.items():
+            weight = config['weight'] / total_weight
+            final_positions += weight * scale_results[scale]
+        
+        # Convert back to landmark format
+        smoothed_landmarks = landmarks.copy()
+        for i, pos in enumerate(final_positions):
+            smoothed_landmarks[i].x = pos[0]
+            smoothed_landmarks[i].y = pos[1]
+            smoothed_landmarks[i].z = pos[2]
+        
+        return smoothed_landmarks
+```
+
+## 8. Experimental Validation and Benchmarking
+
+### 8.1 Synthetic Hand Motion Generation
+
+```python
+class SyntheticHandMotionGenerator:
+    def __init__(self):
+        """Generate synthetic hand motions for validation"""
+        self.hand_model = self._create_kinematic_hand_model()
+    
+    def _create_kinematic_hand_model(self):
+        """Create simplified kinematic model of hand"""
+        return {
+            'bone_lengths': {
+                'thumb': [0.045, 0.035, 0.025],      # Realistic bone lengths in meters
+                'index': [0.065, 0.045, 0.025],
+                'middle': [0.075, 0.050, 0.030],
+                'ring': [0.070, 0.045, 0.025],
+                'pinky': [0.055, 0.035, 0.020]
+            },
+            'joint_limits': {
+                'mcp': [-10, 90],    # Degrees
+                'pip': [0, 110],
+                'dip': [0, 80]
+            }
+        }
+    
+    def generate_finger_curl_motion(self, duration=5.0, fps=30, noise_level=0.02):
+        """
+        Generate synthetic finger curling motion
+        
+        Args:
+            duration: Motion duration in seconds
+            fps: Frames per second
+            noise_level: Gaussian noise standard deviation
+            
+        Returns:
+            clean_motion: Ground truth hand poses [frames, 21, 3]
+            noisy_motion: Noisy observations [frames, 21, 3]
+        """
+        frames = int(duration * fps)
+        t = np.linspace(0, duration, frames)
+        
+        clean_motion = []
+        noisy_motion = []
+        
+        for frame_idx in range(frames):
+            # Generate curl parameters (sinusoidal motion)
+            curl_factor = 0.5 * (1 + np.sin(2 * np.pi * t[frame_idx] / duration))
+            
+            # Generate hand pose for this frame
+            hand_pose = self._generate_hand_pose_from_curl(curl_factor)
+            
+            # Add noise
+            noise = np.random.normal(0, noise_level, hand_pose.shape)
+            noisy_pose = hand_pose + noise
+            
+            clean_motion.append(hand_pose)
+            noisy_motion.append(noisy_pose)
+        
+        return np.array(clean_motion), np.array(noisy_motion)
+    
+    def _generate_hand_pose_from_curl(self, curl_factor):
+        """Generate 21 landmark positions from curl factor"""
+        # Simplified hand pose generation
+        # In practice, this would use forward kinematics
+        
+        hand_pose = np.zeros((21, 3))
+        
+        # Wrist position (fixed)
+        hand_pose[0] = [0, 0, 0]
+        
+        # Generate finger positions based on curl factor
+        for finger_idx, finger in enumerate(['thumb', 'index', 'middle', 'ring', 'pinky']):
+            base_indices = self.finger_indices[finger]
+            bone_lengths = self.hand_model['bone_lengths'][finger]
+            
+            # Calculate joint angles based on curl
+            joint_angles = [curl_factor * 60, curl_factor * 90, curl_factor * 70]  # Degrees
+            
+            # Forward kinematics to compute positions
+            finger_positions = self._forward_kinematics(
+                base_indices, bone_lengths, joint_angles, finger_idx
+            )
+            
+            for i, pos in enumerate(finger_positions):
+                landmark_idx = base_indices[i]
+                hand_pose[landmark_idx] = pos
+        
+        return hand_pose
+    
+    def _forward_kinematics(self, indices, lengths, angles, finger_idx):
+        """Compute finger tip positions using forward kinematics"""
+        positions = []
+        
+        # Base position (MCP joint)
+        base_x = -0.06 + finger_idx * 0.03  # Spread fingers across palm
+        base_y = 0.05
+        base_z = 0
+        
+        current_pos = np.array([base_x, base_y, base_z])
+        current_angle = 0
+        
+        for i, (length, angle) in enumerate(zip(lengths, angles)):
+            current_angle += np.radians(angle)
+            
+            # Simple 2D kinematics in Y-Z plane
+            current_pos[1] += length * np.cos(current_angle)
+            current_pos[2] += length * np.sin(current_angle)
+            
+            positions.append(current_pos.copy())
+        
+        return positions
+```
+
+### 8.2 Quantitative Performance Metrics
+
+```python
+class HandTrackingEvaluator:
+    def __init__(self):
+        """Evaluator for hand tracking performance"""
+        self.metrics = {
+            'positional_error': [],
+            'velocity_error': [],
+            'acceleration_error': [],
+            'jitter_reduction': [],
+            'motion_preservation': [],
+            'tracking_stability': []
+        }
+    
+    def evaluate_smoothing_performance(self, ground_truth, noisy_input, smoothed_output):
+        """
+        Comprehensive evaluation of smoothing performance
+        
+        Args:
+            ground_truth: Clean hand motions [frames, 21, 3]
+            noisy_input: Noisy observations [frames, 21, 3]
+            smoothed_output: Smoothed results [frames, 21, 3]
+            
+        Returns:
+            Dictionary of performance metrics
+        """
+        results = {}
+        
+        # 1. Positional Accuracy
+        pos_error_smooth = np.mean(np.linalg.norm(smoothed_output - ground_truth, axis=2))
+        pos_error_noisy = np.mean(np.linalg.norm(noisy_input - ground_truth, axis=2))
+        results['positional_error_reduction'] = (pos_error_noisy - pos_error_smooth) / pos_error_noisy
+        
+        # 2. Jitter Reduction (high-frequency noise)
+        jitter_smooth = self._calculate_jitter(smoothed_output)
+        jitter_noisy = self._calculate_jitter(noisy_input)
+        results['jitter_reduction'] = (jitter_noisy - jitter_smooth) / jitter_noisy
+        
+        # 3. Motion Preservation (low-frequency signal)
+        motion_smooth = self._calculate_motion_energy(smoothed_output)
+        motion_gt = self._calculate_motion_energy(ground_truth)
+        results['motion_preservation'] = motion_smooth / motion_gt
+        
+        # 4. Velocity Accuracy
+        vel_error_smooth = self._calculate_velocity_error(smoothed_output, ground_truth)
+        vel_error_noisy = self._calculate_velocity_error(noisy_input, ground_truth)
+        results['velocity_error_reduction'] = (vel_error_noisy - vel_error_smooth) / vel_error_noisy
+        
+        # 5. Bone Length Consistency
+        length_consistency_smooth = self._calculate_bone_length_consistency(smoothed_output)
+        length_consistency_noisy = self._calculate_bone_length_consistency(noisy_input)
+        results['bone_length_consistency'] = length_consistency_smooth / length_consistency_noisy
+        
+        # 6. Tracking Stability (temporal consistency)
+        stability_smooth = self._calculate_tracking_stability(smoothed_output)
+        stability_noisy = self._calculate_tracking_stability(noisy_input)
+        results['tracking_stability'] = stability_smooth / stability_noisy
+        
+        return results
+    
+    def _calculate_jitter(self, motion_data):
+        """Calculate jitter as second-order differences"""
+        # Second derivative approximation
+        second_diff = motion_data[2:] - 2*motion_data[1:-1] + motion_data[:-2]
+        return np.mean(np.linalg.norm(second_diff, axis=2))
+    
+    def _calculate_motion_energy(self, motion_data):
+        """Calculate motion energy as sum of velocity magnitudes"""
+        velocities = np.diff(motion_data, axis=0)
+        return np.sum(np.linalg.norm(velocities, axis=2))
+    
+    def _calculate_velocity_error(self, predicted, ground_truth):
+        """Calculate velocity-based error"""
+        vel_pred = np.diff(predicted, axis=0)
+        vel_gt = np.diff(ground_truth, axis=0)
+        return np.mean(np.linalg.norm(vel_pred - vel_gt, axis=2))
+    
+    def _calculate_bone_length_consistency(self, motion_data):
+        """Calculate consistency of bone lengths over time"""
+        bone_connections = [
+            (1, 2), (2, 3), (3, 4),      # Thumb
+            (5, 6), (6, 7), (7, 8),      # Index
+            (9, 10), (10, 11), (11, 12), # Middle
+            (13, 14), (14, 15), (15, 16), # Ring
+            (17, 18), (18, 19), (19, 20)  # Pinky
+        ]
+        
+        bone_length_variations = []
+        
+        for start_idx, end_idx in bone_connections:
+            # Calculate bone lengths over time
+            bone_vectors = motion_data[:, end_idx, :] - motion_data[:, start_idx, :]
+            bone_lengths = np.linalg.norm(bone_vectors, axis=1)
+            
+            # Calculate coefficient of variation
+            if np.mean(bone_lengths) > 0:
+                cv = np.std(bone_lengths) / np.mean(bone_lengths)
+                bone_length_variations.append(cv)
+        
+        # Return inverse of average coefficient of variation (higher is better)
+        return 1.0 / (np.mean(bone_length_variations) + 1e-6)
+    
+    def _calculate_tracking_stability(self, motion_data):
+        """Calculate temporal consistency of tracking"""
+        # Calculate frame-to-frame position changes
+        frame_changes = np.diff(motion_data, axis=0)
+        change_magnitudes = np.linalg.norm(frame_changes, axis=2)
+        
+        # Stability is inverse of variance in change magnitudes
+        stability_scores = []
+        for landmark_idx in range(21):
+            landmark_changes = change_magnitudes[:, landmark_idx]
+            if np.mean(landmark_changes) > 0:
+                stability = 1.0 / (np.std(landmark_changes) / np.mean(landmark_changes) + 1e-6)
+                stability_scores.append(stability)
+        
+        return np.mean(stability_scores)
+```
+
+### 8.3 Benchmark Results and Analysis
+
+```python
+def run_comprehensive_benchmark():
+    """Run comprehensive benchmark of palm armature smoothing"""
+    
+    # Generate synthetic test data
+    generator = SyntheticHandMotionGenerator()
+    evaluator = HandTrackingEvaluator()
+    
+    # Test scenarios
+    test_scenarios = [
+        {'name': 'Low Noise', 'noise_level': 0.005, 'duration': 5.0},
+        {'name': 'Medium Noise', 'noise_level': 0.015, 'duration': 5.0},
+        {'name': 'High Noise', 'noise_level': 0.030, 'duration': 5.0},
+        {'name': 'Rapid Motion', 'noise_level': 0.010, 'duration': 2.0},
+        {'name': 'Slow Motion', 'noise_level': 0.010, 'duration': 10.0}
+    ]
+    
+    # Test different smoothing configurations
+    smoothing_configs = [
+        {'name': 'Conservative', 'alpha_base': 0.8, 'window_size': 12},
+        {'name': 'Balanced', 'alpha_base': 0.6, 'window_size': 8},
+        {'name': 'Aggressive', 'alpha_base': 0.4, 'window_size': 5},
+        {'name': 'Multi-Scale', 'use_multiscale': True},
+        {'name': 'Gesture-Aware', 'use_gesture_aware': True}
+    ]
+    
+    results = {}
+    
+    for scenario in test_scenarios:
+        print(f"Testing scenario: {scenario['name']}")
+        
+        # Generate test data
+        gt_motion, noisy_motion = generator.generate_finger_curl_motion(
+            duration=scenario['duration'],
+            noise_level=scenario['noise_level']
+        )
+        
+        scenario_results = {}
+        
+        for config in smoothing_configs:
+            print(f"  Testing config: {config['name']}")
+            
+            # Create smoother with specific configuration
+            if config.get('use_multiscale', False):
+                smoother = MultiScalePalmSmoother()
+            elif config.get('use_gesture_aware', False):
+                smoother = GestureAwarePalmSmoother()
+            else:
+                smoother = PalmArmatureSmoother(
+                    alpha_base=config.get('alpha_base', 0.6),
+                    window_size=config.get('window_size', 8)
+                )
+            
+            # Process synthetic data
+            smoothed_motion = []
+            for frame_idx, frame_landmarks in enumerate(noisy_motion):
+                # Convert to MediaPipe landmark format
+                mock_landmarks = [type('Landmark', (), {
+                    'x': pos[0], 'y': pos[1], 'z': pos[2]
+                })() for pos in frame_landmarks]
+                
+                # Apply smoothing
+                if hasattr(smoother, 'multi_scale_smooth'):
+                    smoothed_landmarks = smoother.multi_scale_smooth(
+                        mock_landmarks, 'test_hand', frame_idx/30.0
+                    )
+                else:
+                    smoothed_landmarks = smoother._apply_variable_smoothing(
+                        mock_landmarks, 'test_hand', frame_idx/30.0, 
+                        {i: 0.8 for i in range(21)}
+                    )
+                
+                # Convert back to numpy
+                smoothed_frame = np.array([[lm.x, lm.y, lm.z] for lm in smoothed_landmarks])
+                smoothed_motion.append(smoothed_frame)
+            
+            smoothed_motion = np.array(smoothed_motion)
+            
+            # Evaluate performance
+            metrics = evaluator.evaluate_smoothing_performance(
+                gt_motion, noisy_motion, smoothed_motion
+            )
+            
+            scenario_results[config['name']] = metrics
+        
+        results[scenario['name']] = scenario_results
+    
+    # Print summary results
+    print("\n=== Benchmark Results ===")
+    for scenario, configs in results.items():
+        print(f"\nScenario: {scenario}")
+        for config, metrics in configs.items():
+            print(f"  {config}:")
+            for metric, value in metrics.items():
+                print(f"    {metric}: {value:.3f}")
+    
+    return results
+```
+
+## 9. Applications and Use Cases
+
+### 9.1 Virtual Reality Hand Tracking
+
+```python
+class VRHandTrackingSystem:
+    def __init__(self):
+        """VR-optimized hand tracking with ultra-low latency requirements"""
+        self.smoother = PalmArmatureSmoother(
+            alpha_base=0.5,  # Lower latency, accept some noise
+            window_size=5,   # Minimal history for speed
+            confidence_threshold=0.6
+        )
+        
+        # VR-specific optimizations
+        self.prediction_enabled = True
+        self.latency_compensation = 16  # milliseconds
+        
+    def process_vr_frame(self, image, timestamp, head_pose):
+        """
+        Process frame for VR application with motion prediction
+        
+        Args:
+            image: Camera image
+            timestamp: Frame timestamp
+            head_pose: Current HMD pose for coordinate transformation
+            
+        Returns:
+            VR-ready hand poses with latency compensation
+        """
+        # Standard processing
+        hands, vis_image = self.smoother.process_frame(image, timestamp)
+        
+        # Apply VR-specific post-processing
+        vr_hands = {}
+        for hand_id, hand_data in hands.items():
+            # Transform to VR world coordinates
+            vr_pose = self._transform_to_vr_coordinates(
+                hand_data['landmarks'], head_pose
+            )
+            
+            # Apply motion prediction for latency compensation
+            if self.prediction_enabled:
+                predicted_pose = self._predict_motion(
+                    vr_pose, hand_id, self.latency_compensation
+                )
+                vr_hands[hand_id] = predicted_pose
+            else:
+                vr_hands[hand_id] = vr_pose
+        
+        return vr_hands, vis_image
+```
+
+### 9.2 Sign Language Recognition System
+
+```python
+class SignLanguageTracker:
+    def __init__(self):
+        """Hand tracking optimized for sign language recognition"""
+        self.smoother = GestureAwarePalmSmoother(
+            alpha_base=0.7,  # Higher accuracy for linguistic precision
+            window_size=10,  # Longer history for stability
+            confidence_threshold=0.8
+        )
+        
+        # Sign language specific features
+        self.feature_extractor = SignLanguageFeatureExtractor()
+        self.temporal_buffer = deque(maxlen=30)  # 1 second buffer at 30fps
+        
+    def process_sign_language_frame(self, image, timestamp):
+        """
+        Process frame for sign language recognition
+        
+        Args:
+            image: Input image
+            timestamp: Frame timestamp
+            
+        Returns:
+            Dictionary containing hand features and classification confidence
+        """
+        hands, vis_image = self.smoother.process_frame(image, timestamp)
+        
+        if not hands:
+            return None, vis_image
+        
+        # Extract sign language features
+        features = {}
+        for hand_id, hand_data in hands.items():
+            landmarks = hand_data['landmarks']
+            
+            # Extract geometric features
+            hand_features = self.feature_extractor.extract_features(landmarks)
+            
+            # Add temporal context
+            hand_features['temporal_context'] = self._get_temporal_context(
+                hand_id, landmarks
+            )
+            
+            features[hand_id] = hand_features
+        
+        # Store in temporal buffer
+        self.temporal_buffer.append({
+            'timestamp': timestamp,
+            'features': features,
+            'hands': hands
+        })
+        
+        return features, vis_image
+    
+    def _get_temporal_context(self, hand_id, current_landmarks):
+        """Extract temporal context for sign language classification"""
+        if len(self.temporal_buffer) < 2:
+            return None
+        
+        # Calculate motion vectors over recent history
+        motion_vectors = []
+        for i in range(1, min(6, len(self.temporal_buffer))):  # Last 5 frames
+            prev_frame = self.temporal_buffer[-(i+1)]
+            curr_frame = self.temporal_buffer[-i]
+            
+            if hand_id in prev_frame['hands'] and hand_id in curr_frame['hands']:
+                prev_landmarks = prev_frame['hands'][hand_id]['landmarks']
+                curr_landmarks = curr_frame['hands'][hand_id]['landmarks']
+                
+                frame_motion = []
+                for j in range(21):
+                    prev_pos = np.array([prev_landmarks[j].x, prev_landmarks[j].y, prev_landmarks[j].z])
+                    curr_pos = np.array([curr_landmarks[j].x, curr_landmarks[j].y, curr_landmarks[j].z])
+                    motion = curr_pos - prev_pos
+                    frame_motion.append(motion)
+                
+                motion_vectors.append(frame_motion)
+        
+        return {
+            'motion_vectors': motion_vectors,
+            'motion_magnitude': np.mean([np.linalg.norm(mv) for mv in motion_vectors]) if motion_vectors else 0,
+            'motion_consistency': self._calculate_motion_consistency(motion_vectors)
+        }
+    
+    def _calculate_motion_consistency(self, motion_vectors):
+        """Calculate consistency of motion over time"""
+        if len(motion_vectors) < 2:
+            return 1.0
+        
+        consistencies = []
+        for i in range(1, len(motion_vectors)):
+            prev_motion = np.array(motion_vectors[i-1]).flatten()
+            curr_motion = np.array(motion_vectors[i]).flatten()
+            
+            if np.linalg.norm(prev_motion) > 0 and np.linalg.norm(curr_motion) > 0:
+                dot_product = np.dot(prev_motion, curr_motion)
+                magnitude_product = np.linalg.norm(prev_motion) * np.linalg.norm(curr_motion)
+                consistency = dot_product / magnitude_product
+                consistencies.append(max(0, consistency))
+        
+        return np.mean(consistencies) if consistencies else 1.0
+
+class SignLanguageFeatureExtractor:
+    def __init__(self):
+        """Feature extractor optimized for sign language gestures"""
+        self.finger_tip_indices = [4, 8, 12, 16, 20]
+        self.finger_base_indices = [2, 5, 9, 13, 17]
+        
+    def extract_features(self, landmarks):
+        """
+        Extract comprehensive features for sign language recognition
+        
+        Args:
+            landmarks: Hand landmark positions
+            
+        Returns:
+            Dictionary of extracted features
+        """
+        features = {}
+        
+        # 1. Hand shape features
+        features['hand_shape'] = self._extract_hand_shape_features(landmarks)
+        
+        # 2. Finger configuration features
+        features['finger_config'] = self._extract_finger_configuration(landmarks)
+        
+        # 3. Palm orientation features
+        features['palm_orientation'] = self._extract_palm_orientation(landmarks)
+        
+        # 4. Relative positioning features
+        features['relative_positions'] = self._extract_relative_positions(landmarks)
+        
+        return features
+    
+    def _extract_hand_shape_features(self, landmarks):
+        """Extract overall hand shape characteristics"""
+        # Convert landmarks to numpy array
+        positions = np.array([[lm.x, lm.y, lm.z] for lm in landmarks])
+        
+        # Calculate hand bounding box
+        min_coords = np.min(positions, axis=0)
+        max_coords = np.max(positions, axis=0)
+        hand_size = max_coords - min_coords
+        
+        # Calculate hand aspect ratios
+        aspect_ratio_xy = hand_size[0] / hand_size[1] if hand_size[1] > 0 else 1.0
+        aspect_ratio_xz = hand_size[0] / hand_size[2] if hand_size[2] > 0 else 1.0
+        
+        # Calculate hand compactness (convex hull area vs bounding box area)
+        from scipy.spatial import ConvexHull
+        try:
+            hull = ConvexHull(positions[:, :2])  # 2D projection
+            hull_area = hull.volume  # In 2D, volume is area
+            bbox_area = hand_size[0] * hand_size[1]
+            compactness = hull_area / bbox_area if bbox_area > 0 else 0
+        except:
+            compactness = 0.5  # Default value
+        
+        return {
+            'hand_size': hand_size,
+            'aspect_ratio_xy': aspect_ratio_xy,
+            'aspect_ratio_xz': aspect_ratio_xz,
+            'compactness': compactness
+        }
+    
+    def _extract_finger_configuration(self, landmarks):
+        """Extract finger-specific configuration features"""
+        finger_configs = {}
+        
+        finger_chains = {
+            'thumb': [1, 2, 3, 4],
+            'index': [5, 6, 7, 8],
+            'middle': [9, 10, 11, 12],
+            'ring': [13, 14, 15, 16],
+            'pinky': [17, 18, 19, 20]
+        }
+        
+        for finger_name, chain in finger_chains.items():
+            # Calculate finger extension (distance from base to tip)
+            base_pos = np.array([landmarks[chain[0]].x, landmarks[chain[0]].y, landmarks[chain[0]].z])
+            tip_pos = np.array([landmarks[chain[-1]].x, landmarks[chain[-1]].y, landmarks[chain[-1]].z])
+            extension = np.linalg.norm(tip_pos - base_pos)
+            
+            # Calculate finger curvature (sum of joint angles)
+            joint_angles = []
+            for i in range(len(chain) - 2):
+                p1 = np.array([landmarks[chain[i]].x, landmarks[chain[i]].y, landmarks[chain[i]].z])
+                p2 = np.array([landmarks[chain[i+1]].x, landmarks[chain[i+1]].y, landmarks[chain[i+1]].z])
+                p3 = np.array([landmarks[chain[i+2]].x, landmarks[chain[i+2]].y, landmarks[chain[i+2]].z])
+                
+                v1 = p1 - p2
+                v2 = p3 - p2
+                
+                cos_angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-6)
+                angle = np.arccos(np.clip(cos_angle, -1, 1))
+                joint_angles.append(angle)
+            
+            curvature = np.sum(joint_angles)
+            
+            finger_configs[finger_name] = {
+                'extension': extension,
+                'curvature': curvature,
+                'curl_ratio': curvature / (np.pi * (len(chain) - 2)) if len(chain) > 2 else 0
+            }
+        
+        return finger_configs
+    
+    def _extract_palm_orientation(self, landmarks):
+        """Extract palm orientation and normal vector"""
+        # Use key palm landmarks to define palm plane
+        wrist = np.array([landmarks[0].x, landmarks[0].y, landmarks[0].z])
+        index_mcp = np.array([landmarks[5].x, landmarks[5].y, landmarks[5].z])
+        pinky_mcp = np.array([landmarks[17].x, landmarks[17].y, landmarks[17].z])
+        middle_mcp = np.array([landmarks[9].x, landmarks[9].y, landmarks[9].z])
+        
+        # Calculate palm vectors
+        palm_width_vector = index_mcp - pinky_mcp
+        palm_length_vector = middle_mcp - wrist
+        
+        # Calculate palm normal (cross product)
+        palm_normal = np.cross(palm_width_vector, palm_length_vector)
+        palm_normal = palm_normal / (np.linalg.norm(palm_normal) + 1e-6)
+        
+        # Calculate orientation angles
+        roll = np.arctan2(palm_normal[1], palm_normal[2])
+        pitch = np.arctan2(-palm_normal[0], np.sqrt(palm_normal[1]**2 + palm_normal[2]**2))
+        yaw = np.arctan2(palm_width_vector[1], palm_width_vector[0])
+        
+        return {
+            'palm_normal': palm_normal,
+            'roll': roll,
+            'pitch': pitch,
+            'yaw': yaw,
+            'palm_width': np.linalg.norm(palm_width_vector),
+            'palm_length': np.linalg.norm(palm_length_vector)
+        }
+    
+    def _extract_relative_positions(self, landmarks):
+        """Extract relative positioning features between landmarks"""
+        # Calculate distances between fingertips
+        fingertip_distances = {}
+        fingertip_indices = [4, 8, 12, 16, 20]
+        
+        for i, idx1 in enumerate(fingertip_indices):
+            for j, idx2 in enumerate(fingertip_indices[i+1:], i+1):
+                pos1 = np.array([landmarks[idx1].x, landmarks[idx1].y, landmarks[idx1].z])
+                pos2 = np.array([landmarks[idx2].x, landmarks[idx2].y, landmarks[idx2].z])
+                distance = np.linalg.norm(pos2 - pos1)
+                
+                finger_names = ['thumb', 'index', 'middle', 'ring', 'pinky']
+                key = f"{finger_names[i]}_{finger_names[j]}"
+                fingertip_distances[key] = distance
+        
+        # Calculate finger spread (variance of fingertip positions)
+        fingertip_positions = []
+        for idx in fingertip_indices:
+            pos = np.array([landmarks[idx].x, landmarks[idx].y, landmarks[idx].z])
+            fingertip_positions.append(pos)
+        
+        fingertip_positions = np.array(fingertip_positions)
+        fingertip_centroid = np.mean(fingertip_positions, axis=0)
+        
+        spread_distances = []
+        for pos in fingertip_positions:
+            spread_distances.append(np.linalg.norm(pos - fingertip_centroid))
+        
+        finger_spread = np.std(spread_distances)
+        
+        return {
+            'fingertip_distances': fingertip_distances,
+            'finger_spread': finger_spread,
+            'fingertip_centroid': fingertip_centroid
+        }
+```
+
+### 9.3 Medical Rehabilitation and Assessment
+
+```python
+class MedicalHandAssessment:
+    def __init__(self):
+        """Hand tracking system for medical rehabilitation and assessment"""
+        self.smoother = PalmArmatureSmoother(
+            alpha_base=0.8,  # High accuracy for medical measurements
+            window_size=12,  # Longer smoothing for stability
+            confidence_threshold=0.85
+        )
+        
+        # Medical assessment parameters
+        self.assessment_metrics = {
+            'range_of_motion': {},
+            'movement_quality': {},
+            'tremor_analysis': {},
+            'coordination_tests': {}
+        }
+        
+        # Clinical reference values
+        self.clinical_references = self._load_clinical_references()
+        
+    def _load_clinical_references(self):
+        """Load clinical reference values for hand assessment"""
+        return {
+            'joint_rom': {  # Range of Motion in degrees
+                'mcp_flexion': {'normal': 90, 'min_functional': 60},
+                'pip_flexion': {'normal': 100, 'min_functional': 70},
+                'dip_flexion': {'normal': 70, 'min_functional': 45},
+                'thumb_opposition': {'normal': 8, 'min_functional': 6}  # cm from thumb tip to pinky base
+            },
+            'movement_velocity': {  # cm/s
+                'finger_tapping': {'normal': [4.0, 8.0], 'impaired': [1.0, 3.0]},
+                'grip_formation': {'normal': [2.0, 5.0], 'impaired': [0.5, 1.5]}
+            },
+            'tremor_frequency': {  # Hz
+                'rest_tremor': {'parkinsonian': [4, 6], 'essential': [8, 12]},
+                'action_tremor': {'normal': [0, 2], 'pathological': [3, 15]}
+            }
+        }
+    
+    def assess_hand_function(self, video_sequence, assessment_type='comprehensive'):
+        """
+        Perform comprehensive hand function assessment
+        
+        Args:
+            video_sequence: Sequence of video frames
+            assessment_type: Type of assessment ('rom', 'tremor', 'coordination', 'comprehensive')
+            
+        Returns:
+            Detailed assessment report with clinical metrics
+        """
+        # Process video sequence
+        hand_trajectories = []
+        for frame_idx, frame in enumerate(video_sequence):
+            hands, _ = self.smoother.process_frame(frame, frame_idx / 30.0)
+            if hands:
+                hand_trajectories.append(hands)
+        
+        if not hand_trajectories:
+            return {'error': 'No hand detected in video sequence'}
+        
+        assessment_results = {}
+        
+        if assessment_type in ['rom', 'comprehensive']:
+            assessment_results['range_of_motion'] = self._assess_range_of_motion(hand_trajectories)
+        
+        if assessment_type in ['tremor', 'comprehensive']:
+            assessment_results['tremor_analysis'] = self._assess_tremor_characteristics(hand_trajectories)
+        
+        if assessment_type in ['coordination', 'comprehensive']:
+            assessment_results['coordination'] = self._assess_coordination(hand_trajectories)
+        
+        if assessment_type == 'comprehensive':
+            assessment_results['overall_score'] = self._calculate_overall_score(assessment_results)
+        
+        return assessment_results
+    
+    def _assess_range_of_motion(self, hand_trajectories):
+        """Assess joint range of motion"""
+        rom_results = {}
+        
+        finger_chains = {
+            'thumb': [(1, 2), (2, 3), (3, 4)],
+            'index': [(5, 6), (6, 7), (7, 8)],
+            'middle': [(9, 10), (10, 11), (11, 12)],
+            'ring': [(13, 14), (14, 15), (15, 16)],
+            'pinky': [(17, 18), (18, 19), (19, 20)]
+        }
+        
+        for hand_id in hand_trajectories[0].keys():
+            hand_rom = {}
+            
+            for finger, joints in finger_chains.items():
+                finger_rom = {}
+                
+                for joint_idx, (start_idx, end_idx) in enumerate(joints):
+                    joint_angles = []
+                    
+                    for frame in hand_trajectories:
+                        if hand_id in frame:
+                            landmarks = frame[hand_id]['landmarks']
+                            
+                            # Calculate joint angle
+                            if joint_idx == 0:  # MCP joint
+                                prev_point = np.array([landmarks[0].x, landmarks[0].y, landmarks[0].z])  # Wrist reference
+                            else:
+                                prev_joint = joints[joint_idx-1]
+                                prev_point = np.array([landmarks[prev_joint[0]].x, landmarks[prev_joint[0]].y, landmarks[prev_joint[0]].z])
+                            
+                            curr_point = np.array([landmarks[start_idx].x, landmarks[start_idx].y, landmarks[start_idx].z])
+                            next_point = np.array([landmarks[end_idx].x, landmarks[end_idx].y, landmarks[end_idx].z])
+                            
+                            # Calculate angle between vectors
+                            v1 = prev_point - curr_point
+                            v2 = next_point - curr_point
+                            
+                            cos_angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2) + 1e-6)
+                            angle = np.degrees(np.arccos(np.clip(cos_angle, -1, 1)))
+                            joint_angles.append(angle)
+                    
+                    # Calculate ROM statistics
+                    if joint_angles:
+                        joint_names = ['mcp', 'pip', 'dip']
+                        joint_name = joint_names[joint_idx] if joint_idx < len(joint_names) else f'joint_{joint_idx}'
+                        
+                        finger_rom[joint_name] = {
+                            'max_angle': np.max(joint_angles),
+                            'min_angle': np.min(joint_angles),
+                            'rom': np.max(joint_angles) - np.min(joint_angles),
+                            'mean_angle': np.mean(joint_angles),
+                            'std_angle': np.std(joint_angles)
+                        }
+                
+                hand_rom[finger] = finger_rom
+            
+            rom_results[hand_id] = hand_rom
+        
+        return rom_results
+    
+    def _assess_tremor_characteristics(self, hand_trajectories):
+        """Assess tremor characteristics using frequency analysis"""
+        tremor_results = {}
+        
+        for hand_id in hand_trajectories[0].keys():
+            # Extract position time series for key landmarks
+            key_landmarks = [4, 8, 12, 16, 20]  # Fingertips
+            
+            tremor_analysis = {}
+            
+            for landmark_idx in key_landmarks:
+                position_series = []
+                
+                for frame in hand_trajectories:
+                    if hand_id in frame:
+                        landmarks = frame[hand_id]['landmarks']
+                        pos = np.array([landmarks[landmark_idx].x, landmarks[landmark_idx].y, landmarks[landmark_idx].z])
+                        position_series.append(pos)
+                
+                if len(position_series) > 10:  # Minimum frames for analysis
+                    position_series = np.array(position_series)
+                    
+                    # Perform frequency analysis
+                    from scipy import signal
+                    
+                    # Calculate movement amplitude (detrended)
+                    for axis_idx, axis_name in enumerate(['x', 'y', 'z']):
+                        axis_data = position_series[:, axis_idx]
+                        
+                        # Detrend the signal
+                        detrended = signal.detrend(axis_data)
+                        
+                        # Apply FFT for frequency analysis
+                        fft_result = np.fft.fft(detrended)
+                        freqs = np.fft.fftfreq(len(detrended), d=1/30.0)  # Assuming 30 FPS
+                        
+                        # Find dominant frequency
+                        power_spectrum = np.abs(fft_result)**2
+                        positive_freqs = freqs[:len(freqs)//2]
+                        positive_power = power_spectrum[:len(power_spectrum)//2]
+                        
+                        if len(positive_freqs) > 1:
+                            dominant_freq_idx = np.argmax(positive_power[1:]) + 1  # Skip DC component
+                            dominant_freq = positive_freqs[dominant_freq_idx]
+                            
+                            # Calculate tremor amplitude (RMS of detrended signal)
+                            tremor_amplitude = np.sqrt(np.mean(detrended**2))
+                            
+                            finger_names = ['thumb', 'index', 'middle', 'ring', 'pinky']
+                            finger_name = finger_names[key_landmarks.index(landmark_idx)]
+                            
+                            if finger_name not in tremor_analysis:
+                                tremor_analysis[finger_name] = {}
+                            
+                            tremor_analysis[finger_name][f'{axis_name}_axis'] = {
+                                'dominant_frequency': dominant_freq,
+                                'tremor_amplitude': tremor_amplitude,
+                                'power_spectrum': positive_power.tolist()[:20],  # First 20 frequency bins
+                                'frequency_bins': positive_freqs.tolist()[:20]
+                            }
+            
+            tremor_results[hand_id] = tremor_analysis
+        
+        return tremor_results
+    
+    def _assess_coordination(self, hand_trajectories):
+        """Assess hand coordination through movement analysis"""
+        coordination_results = {}
+        
+        for hand_id in hand_trajectories[0].keys():
+            # Calculate inter-finger coordination
+            fingertip_indices = [4, 8, 12, 16, 20]
+            
+            coordination_metrics = {
+                'temporal_coordination': self._calculate_temporal_coordination(hand_trajectories, hand_id, fingertip_indices),
+                'spatial_coordination': self._calculate_spatial_coordination(hand_trajectories, hand_id, fingertip_indices),
+                'movement_smoothness': self._calculate_movement_smoothness(hand_trajectories, hand_id, fingertip_indices)
+            }
+            
+            coordination_results[hand_id] = coordination_metrics
+        
+        return coordination_results
+    
+    def _calculate_temporal_coordination(self, hand_trajectories, hand_id, landmark_indices):
+        """Calculate temporal coordination between fingers"""
+        # Extract velocity profiles for each finger
+        finger_velocities = {}
+        
+        for i, landmark_idx in enumerate(landmark_indices):
+            positions = []
+            for frame in hand_trajectories:
+                if hand_id in frame:
+                    landmarks = frame[hand_id]['landmarks']
+                    pos = np.array([landmarks[landmark_idx].x, landmarks[landmark_idx].y, landmarks[landmark_idx].z])
+                    positions.append(pos)
+            
+            if len(positions) > 1:
+                positions = np.array(positions)
+                velocities = np.diff(positions, axis=0)
+                velocity_magnitudes = np.linalg.norm(velocities, axis=1)
+                
+                finger_names = ['thumb', 'index', 'middle', 'ring', 'pinky']
+                finger_velocities[finger_names[i]] = velocity_magnitudes
+        
+        # Calculate cross-correlation between finger velocities
+        coordination_scores = {}
+        finger_names = list(finger_velocities.keys())
+        
+        for i, finger1 in enumerate(finger_names):
+            for finger2 in finger_names[i+1:]:
+                if finger1 in finger_velocities and finger2 in finger_velocities:
+                    vel1 = finger_velocities[finger1]
+                    vel2 = finger_velocities[finger2]
+                    
+                    # Ensure same length
+                    min_len = min(len(vel1), len(vel2))
+                    vel1 = vel1[:min_len]
+                    vel2 = vel2[:min_len]
+                    
+                    # Calculate correlation
+                    if len(vel1) > 1 and np.std(vel1) > 0 and np.std(vel2) > 0:
+                        correlation = np.corrcoef(vel1, vel2)[0, 1]
+                        coordination_scores[f"{finger1}_{finger2}"] = correlation
+        
+        return coordination_scores
+    
+    def _calculate_spatial_coordination(self, hand_trajectories, hand_id, landmark_indices):
+        """Calculate spatial coordination patterns"""
+        # Calculate hand configuration consistency
+        finger_distances = []
+        
+        for frame in hand_trajectories:
+            if hand_id in frame:
+                landmarks = frame[hand_id]['landmarks']
+                frame_distances = []
+                
+                # Calculate distances between all pairs of fingertips
+                for i, idx1 in enumerate(landmark_indices):
+                    for idx2 in landmark_indices[i+1:]:
+                        pos1 = np.array([landmarks[idx1].x, landmarks[idx1].y, landmarks[idx1].z])
+                        pos2 = np.array([landmarks[idx2].x, landmarks[idx2].y, landmarks[idx2].z])
+                        distance = np.linalg.norm(pos2 - pos1)
+                        frame_distances.append(distance)
+                
+                finger_distances.append(frame_distances)
+        
+        if finger_distances:
+            finger_distances = np.array(finger_distances)
+            
+            # Calculate consistency (inverse of coefficient of variation)
+            consistency_scores = []
+            for i in range(finger_distances.shape[1]):
+                distance_series = finger_distances[:, i]
+                if np.mean(distance_series) > 0:
+                    cv = np.std(distance_series) / np.mean(distance_series)
+                    consistency = 1.0 / (1.0 + cv)
+                    consistency_scores.append(consistency)
+            
+            return {
+                'mean_consistency': np.mean(consistency_scores) if consistency_scores else 0,
+                'finger_distance_stability': consistency_scores
+            }
+        
+        return {'mean_consistency': 0, 'finger_distance_stability': []}
+    
+    def _calculate_movement_smoothness(self, hand_trajectories, hand_id, landmark_indices):
+        """Calculate movement smoothness using jerk analysis"""
+        smoothness_scores = {}
+        
+        for i, landmark_idx in enumerate(landmark_indices):
+            positions = []
+            
+            for frame in hand_trajectories:
+                if hand_id in frame:
+                    landmarks = frame[hand_id]['landmarks']
+                    pos = np.array([landmarks[landmark_idx].x, landmarks[landmark_idx].y, landmarks[landmark_idx].z])
+                    positions.append(pos)
+            
+            if len(positions) > 3:
+                positions = np.array(positions)
+                
+                # Calculate velocity and acceleration
+                velocities = np.diff(positions, axis=0)
+                accelerations = np.diff(velocities, axis=0)
+                jerks = np.diff(accelerations, axis=0)
+                
+                # Calculate smoothness metric (inverse of jerk magnitude)
+                jerk_magnitudes = np.linalg.norm(jerks, axis=1)
+                mean_jerk = np.mean(jerk_magnitudes)
+                
+                # Smoothness score (lower jerk = higher smoothness)
+                smoothness = 1.0 / (1.0 + mean_jerk * 1000)  # Scale factor for numerical stability
+                
+                finger_names = ['thumb', 'index', 'middle', 'ring', 'pinky']
+                smoothness_scores[finger_names[i]] = smoothness
+        
+        return smoothness_scores
+    
+    def _calculate_overall_score(self, assessment_results):
+        """Calculate overall hand function score"""
+        scores = {}
+        
+        # Range of Motion Score (0-100)
+        if 'range_of_motion' in assessment_results:
+            rom_scores = []
+            for hand_id, hand_data in assessment_results['range_of_motion'].items():
+                for finger, finger_data in hand_data.items():
+                    for joint, joint_data in finger_data.items():
+                        expected_rom = self.clinical_references['joint_rom'].get(f"{joint}_flexion", {}).get('normal', 90)
+                        actual_rom = joint_data['rom']
+                        rom_score = min(100, (actual_rom / expected_rom) * 100)
+                        rom_scores.append(rom_score)
+            
+            scores['range_of_motion'] = np.mean(rom_scores) if rom_scores else 0
+        
+        # Tremor Score (0-100, higher is better)
+        if 'tremor_analysis' in assessment_results:
+            tremor_scores = []
+            for hand_id, hand_data in assessment_results['tremor_analysis'].items():
+                for finger, finger_data in hand_data.items():
+                    for axis, axis_data in finger_data.items():
+                        tremor_amplitude = axis_data['tremor_amplitude']
+                        # Lower tremor amplitude = higher score
+                        tremor_score = max(0, 100 - tremor_amplitude * 10000)  # Scale factor
+                        tremor_scores.append(tremor_score)
+            
+            scores['tremor_control'] = np.mean(tremor_scores) if tremor_scores else 0
+        
+        # Coordination Score (0-100)
+        if 'coordination' in assessment_results:
+            coord_scores = []
+            for hand_id, hand_data in assessment_results['coordination'].items():
+                # Temporal coordination
+                if 'temporal_coordination' in hand_data:
+                    temporal_correlations = list(hand_data['temporal_coordination'].values())
+                    temporal_score = np.mean([abs(corr) * 100 for corr in temporal_correlations if not np.isnan(corr)])
+                    coord_scores.append(temporal_score)
+                
+                # Spatial coordination
+                if 'spatial_coordination' in hand_data:
+                    spatial_score = hand_data['spatial_coordination']['mean_consistency'] * 100
+                    coord_scores.append(spatial_score)
+                
+                # Movement smoothness
+                if 'movement_smoothness' in hand_data:
+                    smoothness_values = list(hand_data['movement_smoothness'].values())
+                    smoothness_score = np.mean(smoothness_values) * 100
+                    coord_scores.append(smoothness_score)
+            
+            scores['coordination'] = np.mean(coord_scores) if coord_scores else 0
+        
+        # Overall score (weighted average)
+        weights = {'range_of_motion': 0.4, 'tremor_control': 0.3, 'coordination': 0.3}
+        overall_score = 0
+        total_weight = 0
+        
+        for category, weight in weights.items():
+            if category in scores:
+                overall_score += scores[category] * weight
+                total_weight += weight
+        
+        if total_weight > 0:
+            overall_score /= total_weight
+        
+        scores['overall'] = overall_score
+        
+        return scores
+```
+
+## 10. Future Research Directions and Limitations
+
+### 10.1 Current Limitations
+
+The presented palm armature smoothing framework has several limitations that warrant further investigation:
+
+1. **Computational Complexity**: Real-time processing of multiple hands with full biomechanical constraints remains computationally intensive
+2. **Occlusion Handling**: Severe self-occlusion scenarios can lead to tracking instability
+3. **Individual Variation**: The system assumes average hand proportions and may not adapt well to significant anatomical variations
+4. **Lighting Sensitivity**: Performance degrades in challenging lighting conditions despite smoothing
+
+### 10.2 Deep Learning Integration
+
+```python
+class NeuralPalmSmoother:
+    def __init__(self):
+        """Neural network-based adaptive smoothing"""
+        self.motion_predictor = self._create_motion_predictor()
+        self.confidence_estimator = self._create_confidence_estimator()
+        
+    def _create_motion_predictor(self):
+        """Create LSTM-based motion prediction network"""
+        import tensorflow as tf
+        
+        model = tf.keras.Sequential([
+            tf.keras.layers.LSTM(128, return_sequences=True, input_shape=(10, 63)),  # 10 frames, 21 landmarks * 3 coords
+            tf.keras.layers.Dropout(0.2),
+            tf.keras.layers.LSTM(64, return_sequences=False),
+            tf.keras.layers.Dropout(0.2),
+            tf.keras.layers.Dense(63, activation='linear'),  # Predict next frame positions
+        ])
+        
+        model.compile(optimizer='adam', loss='mse')
+        return model
+    
+    def predict_motion(self, hand_history):
+        """Predict next hand pose using learned motion patterns"""
+        if len(hand_history) < 10:
+            return None
+        
+        # Prepare input sequence
+        sequence = np.array(hand_history[-10:]).reshape(1, 10, 63)
+        
+        # Predict next frame
+        predicted = self.motion_predictor.predict(sequence)
+        return predicted.reshape(21, 3)
+
+class ReinforcementLearningOptimizer:
+    def __init__(self):
+        """RL-based parameter optimization for smoothing"""
+        self.q_network = self._create_q_network()
+        self.experience_replay = deque(maxlen=10000)
+        
+    def _create_q_network(self):
+        """Create Q-network for parameter selection"""
+        import tensorflow as tf
+        
+        model = tf.keras.Sequential([
+            tf.keras.layers.Dense(256, activation='relu', input_shape=(100,)),  # State features
+            tf.keras.layers.Dense(128, activation='relu'),
+            tf.keras.layers.Dense(64, activation='relu'),
+            tf.keras.layers.Dense(25)  # Actions: different alpha values for 21 landmarks + 4 parameters
+        ])
+        
+        return model
+    
+    def optimize_parameters(self, current_state, tracking_quality_reward):
+        """Optimize smoothing parameters based on tracking quality"""
+        # State includes motion characteristics, confidence scores, tracking history
+        action = self._select_action(current_state)
+        
+        # Convert action to smoothing parameters
+        smoothing_params = self._action_to_parameters(action)
+        
+        # Store experience for training
+        self.experience_replay.append({
+            'state': current_state,
+            'action': action,
+            'reward': tracking_quality_reward,
+            'next_state': None  # To be filled in next iteration
+        })
+        
+        return smoothing_params_landmarks
+```
+
+## 6. Performance Analysis and Optimization
+
+### 6.1 Computational Complexity Analysis
+
+The computational complexity of the palm armature smoothing system is:
+
+$$O(N \cdot F \cdot W)$$
+
+Where:
+- $N = 21$ (number of hand landmarks)
+- $F = 5$ (number of fingers)
+- $W$ is the history window size
+
+### 6.2 Real-Time Performance Metrics
+
+For real-time applications, we target the following performance characteristics:
+
+| Metric | Target | Typical |
+|--------|---------|---------|
+| Processing Latency | < 16ms (60 FPS) | 8-12ms |
+| Memory Usage | < 50MB | 32-45MB |
+| Tracking Stability | > 95% | 97-99% |
+| Motion Preservation | > 85% | 88-92% |
+
+### 6.3 Optimization Strategies
+
+#### 6.3.1 Vectorized Operations
+
+```python
+import numpy as np
+from numba import jit
+
+@jit(nopython=True)
+def vectorized_palm_smoothing(current_positions, prev_positions, alphas):
+    """
+    Vectorized implementation of palm smoothing
+    
+    Args:
+        current_positions: [21, 3] array of current landmark positions
+        prev_positions: [21, 3] array of previous smoothed positions
+        alphas: [21] array of adaptive smoothing factors
+        
+    Returns:
+        smoothed_positions: [21, 3] array of smoothed positions
+    """
+    smoothed = np.empty_like(current_positions)
+    
+    for i in range(21):
+        alpha = alphas[i]
+        for j in range(3):
+            smoothed[i, j] = (1 - alpha) * prev_positions[i, j] + alpha * current_positions[i, j]
+    
+    return smoothed
