@@ -13,17 +13,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Ensure _config.yml exists for plugins
+      - name: Ensure _config.yml exists
         run: |
           if [ ! -f "_config.yml" ]; then
             if [ -f "_config.yaml" ]; then
               cp _config.yaml _config.yml
-              echo "✅ Copied _config.yaml to _config.yml for Jekyll compatibility."
+              echo "✅ Copied _config.yaml to _config.yml"
             else
-              echo "❌ No _config.yml or _config.yaml found — cannot build."
+              echo "❌ No _config.yml or _config.yaml found"
               exit 1
             fi
           fi
+
+      - name: Install svgo
+        run: npm install -g svgo
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -31,10 +34,14 @@ jobs:
           ruby-version: 3.1
           bundler-cache: true
 
-      - name: Install dependencies
+      - name: Install gems
         run: |
           gem install bundler
           bundle install --jobs 4 --retry 3
+
+      - name: Patch jekyll-minifier bug
+        run: |
+          sed -i '1s/^/module Jekyll; class StaticFile; @@mtimes ||= {}; end; end\n/' $(bundle show jekyll-minifier)/lib/jekyll-minifier.rb
 
       - name: Build site
         run: bundle exec jekyll build --trace
