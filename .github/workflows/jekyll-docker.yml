@@ -42,14 +42,18 @@ jobs:
                   -v "$PWD:/srv/jekyll" \
                   -w /srv/jekyll \
                   jekyll/jekyll:4.3 \
-                  sh -c "bundle install --jobs 4 --retry 3 && JEKYLL_ENV=production bundle exec jekyll build --trace"
+                  sh -c "bundle install --jobs 4 --retry 3 && \
+                         chown -R jekyll:jekyll /srv/jekyll && \
+                         JEKYLL_ENV=production bundle exec jekyll build --trace --destination /srv/jekyll/_site"
                 ;;
               jekyll-builder)
                 docker run --rm \
                   -v "$PWD:/srv/jekyll" \
                   -w /srv/jekyll \
                   jekyll/builder:latest \
-                  sh -c "bundle install --jobs 4 --retry 3 && JEKYLL_ENV=production bundle exec jekyll build --trace"
+                  sh -c "bundle install --jobs 4 --retry 3 && \
+                         chown -R jekyll:jekyll /srv/jekyll && \
+                         JEKYLL_ENV=production bundle exec jekyll build --trace --destination /srv/jekyll/_site"
                 ;;
               ruby-native)
                 sudo apt-get update -qq
@@ -59,7 +63,7 @@ jobs:
                 gem install --no-document bundler
                 bundle config set path vendor/bundle
                 bundle install --jobs 4 --retry 3
-                JEKYLL_ENV=production bundle exec jekyll build --trace
+                JEKYLL_ENV=production bundle exec jekyll build --trace --destination _site
                 ;;
               *)
                 echo "::error::Unknown build mode: $1"
