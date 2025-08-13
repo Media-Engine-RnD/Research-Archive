@@ -9,4 +9,4 @@ group :jekyll_plugins do
 end
 
 # Use Bundler for gem management
-gem "bundler", "~> 2.4"
+# gem "bundler", "~> 2.4"
