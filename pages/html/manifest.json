@@ -45,6 +45,7 @@
       "reference": {
         "file": "DX11-OpenCV Integration Architecture.md",
         "path": "{root_repo}/docs/DX11-OpenCV Integration Architecture.md"
+        }
       },
       {
       "name": "Variable Bone Smoothing - Palm Armature.html",
@@ -53,6 +54,7 @@
       "reference": {
         "file": "Variable Bone Smoothing - Palm Armature.md",
         "path": "{root_repo}/docs/Variable Bone Smoothing - Palm Armature.md"
+        }
       }
     }
   ]
