@@ -32,7 +32,7 @@ jobs:
 
       - name: Build Jekyll (Docker & Native Fallbacks)
         run: |
-          set -e
+          set -euo pipefail
 
           build_jekyll() {
             echo "::group::Attempting build with: $1"
@@ -41,7 +41,7 @@ jobs:
                 docker run --rm \
                   -v "$PWD:/srv/jekyll" \
                   -w /srv/jekyll \
-                  jekyll/jekyll:4.3 \
+                  jekyll/jekyll:4.3.3 \
                   sh -c "bundle install --jobs 4 --retry 3 && \
                          chown -R jekyll:jekyll /srv/jekyll && \
                          JEKYLL_ENV=production bundle exec jekyll build --trace --destination /srv/jekyll/_site"
@@ -50,7 +50,7 @@ jobs:
                 docker run --rm \
                   -v "$PWD:/srv/jekyll" \
                   -w /srv/jekyll \
-                  jekyll/builder:latest \
+                  jekyll/builder:4.3.3 \
                   sh -c "bundle install --jobs 4 --retry 3 && \
                          chown -R jekyll:jekyll /srv/jekyll && \
                          JEKYLL_ENV=production bundle exec jekyll build --trace --destination /srv/jekyll/_site"
