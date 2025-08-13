@@ -1,8 +1,8 @@
-name: Build Jekyll Site
+name: Build and Deploy GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: ["main"] # Change if your default branch is different
   workflow_dispatch:
 
 permissions:
@@ -10,105 +10,50 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Prepare config for plugins
+      # Fail fast if config is missing
+      - name: Verify _config exists
         run: |
-          if [ -f "_config.yaml" ] && [ ! -f "_config.yml" ]; then
-            cp _config.yaml _config.yml
-            echo "✅ Copied _config.yaml to _config.yml for plugin compatibility"
-          fi
-          if [ ! -f "_config.yml" ]; then
-            echo "::error::No Jekyll config file found (_config.yml or _config.yaml)"
+          if [ ! -f "_config.yml" ] && [ ! -f "_config.yaml" ]; then
+            echo "❌ No _config.yml or _config.yaml found — cannot build."
             exit 1
           fi
-          echo "✅ Config file ready"
 
-      - name: Verify Gemfile
+      # Fail fast if SCSS file exists but is empty
+      - name: Check SCSS file integrity
         run: |
-          if [ ! -f Gemfile ]; then
-            echo "::error::Gemfile not found in repository root!"
-            exit 1
-          fi
-          echo "✅ Found Gemfile:"
-          head -n 10 Gemfile
-
-      - name: Build Jekyll (Docker & Native Fallbacks)
-        run: |
-          set -euo pipefail
-          CONFIG_FILE="_config.yml"
-
-          build_jekyll() {
-            set -euo pipefail
-            echo "::group::Attempting build with: $1"
-            case "$1" in
-              jekyll-docker)
-                docker run --rm \
-                  -v "$PWD:/srv/jekyll" \
-                  -w /srv/jekyll \
-                  jekyll/jekyll:latest \
-                  sh -c "chown -R jekyll:jekyll /srv/jekyll && \
-                         bundle install --jobs 4 --retry 3 && \
-                         JEKYLL_ENV=production bundle exec jekyll build --config $CONFIG_FILE --trace --destination /srv/jekyll/_site"
-                ;;
-              jekyll-builder)
-                docker run --rm \
-                  -v "$PWD:/srv/jekyll" \
-                  -w /srv/jekyll \
-                  jekyll/builder:latest \
-                  sh -c "chown -R jekyll:jekyll /srv/jekyll && \
-                         bundle install --jobs 4 --retry 3 && \
-                         JEKYLL_ENV=production bundle exec jekyll build --config $CONFIG_FILE --trace --destination /srv/jekyll/_site"
-                ;;
-              ruby-native)
-                sudo apt-get update -qq
-                sudo apt-get install -y ruby-full build-essential zlib1g-dev
-                export GEM_HOME="$HOME/.gem/ruby/$(ruby -e 'print RUBY_VERSION[/\d+\.\d+/]')"
-                export PATH="$GEM_HOME/bin:$PATH"
-                gem install --no-document bundler
-                bundle config set path vendor/bundle
-                bundle install --jobs 4 --retry 3
-                JEKYLL_ENV=production bundle exec jekyll build --config "$CONFIG_FILE" --trace --destination _site
-                ;;
-              *)
-                echo "::error::Unknown build mode: $1"
-                exit 1
-                ;;
-            esac
-            echo "::endgroup::"
-          }
-
-          success=0
-          for method in jekyll-docker jekyll-builder ruby-native; do
-            if build_jekyll "$method" && [ -d "_site" ]; then
-              success=1
-              echo "✅ Build succeeded with $method"
-              break
-            else
-              echo "⚠️ Build failed with $method, trying next..."
+          if [ -f "assets/css/style.scss" ]; then
+            if [ ! -s "assets/css/style.scss" ]; then
+              echo "❌ SCSS file exists but is empty — remove it or add content."
+              exit 1
             fi
-          done
-
-          if [ $success -ne 1 ]; then
-            echo "::error::All build methods failed — no site generated."
-            exit 1
           fi
 
-          echo "✅ _site generated:"
-          ls -lah _site
-
-      - uses: actions/upload-pages-artifact@v3
+      # Setup Ruby for Jekyll
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
         with:
-          path: _site
+          ruby-version: '3.1'
+          bundler-cache: true
+
+      - name: Install dependencies
+        run: |
+          bundle config set --local path 'vendor/bundle'
+          bundle install
+
+      - name: Build site
+        run: bundle exec jekyll build --trace
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
 
   deploy:
     needs: build
@@ -117,5 +62,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - id: deployment
+      - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
