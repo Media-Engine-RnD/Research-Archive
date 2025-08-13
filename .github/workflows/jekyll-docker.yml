@@ -15,8 +15,8 @@ jobs:
 
       - name: Fail if _config.yml is missing
         run: |
-          if [ ! -f "_config.yml" ]; then
-            echo "❌ _config.yml is missing. Jekyll requires this file."
+          if [ ! -f "_config.yaml" ]; then
+            echo "❌ _config.yaml is missing. Jekyll requires this file."
             exit 1
           fi
 
