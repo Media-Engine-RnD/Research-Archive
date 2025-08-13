@@ -21,6 +21,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect config file
+        id: config
+        run: |
+          if [ -f "_config.yml" ]; then
+            echo "config=_config.yml" >> $GITHUB_OUTPUT
+          elif [ -f "_config.yaml" ]; then
+            echo "config=_config.yaml" >> $GITHUB_OUTPUT
+          else
+            echo "::error::No Jekyll config file found (_config.yml or _config.yaml)"
+            exit 1
+          fi
+          echo "✅ Using config file: $(cat $GITHUB_OUTPUT | grep config= | cut -d= -f2)"
+
       - name: Verify Gemfile
         run: |
           if [ ! -f Gemfile ]; then
@@ -33,6 +46,7 @@ jobs:
       - name: Build Jekyll (Docker & Native Fallbacks)
         run: |
           set -euo pipefail
+          CONFIG_FILE="${{ steps.config.outputs.config }}"
 
           build_jekyll() {
             set -euo pipefail
@@ -45,7 +59,7 @@ jobs:
                   jekyll/jekyll:latest \
                   sh -c "chown -R jekyll:jekyll /srv/jekyll && \
                          bundle install --jobs 4 --retry 3 && \
-                         JEKYLL_ENV=production bundle exec jekyll build --trace --destination /srv/jekyll/_site"
+                         JEKYLL_ENV=production bundle exec jekyll build --config $CONFIG_FILE --trace --destination /srv/jekyll/_site"
                 ;;
               jekyll-builder)
                 docker run --rm \
@@ -54,7 +68,7 @@ jobs:
                   jekyll/builder:latest \
                   sh -c "chown -R jekyll:jekyll /srv/jekyll && \
                          bundle install --jobs 4 --retry 3 && \
-                         JEKYLL_ENV=production bundle exec jekyll build --trace --destination /srv/jekyll/_site"
+                         JEKYLL_ENV=production bundle exec jekyll build --config $CONFIG_FILE --trace --destination /srv/jekyll/_site"
                 ;;
               ruby-native)
                 sudo apt-get update -qq
@@ -64,7 +78,7 @@ jobs:
                 gem install --no-document bundler
                 bundle config set path vendor/bundle
                 bundle install --jobs 4 --retry 3
-                JEKYLL_ENV=production bundle exec jekyll build --trace --destination _site
+                JEKYLL_ENV=production bundle exec jekyll build --config "$CONFIG_FILE" --trace --destination _site
                 ;;
               *)
                 echo "::error::Unknown build mode: $1"
