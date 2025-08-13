@@ -16,63 +16,61 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Build with Docker (Multiple Fallbacks)
+      - name: Build with Docker (Permission-Fixed Fallbacks)
         run: |
           # Function to try building with different approaches
           build_jekyll() {
             echo "Attempting Jekyll build with approach: $1"
             
             case $1 in
-              "jekyll-minimal")
-                # Approach 1: Use jekyll/minimal which is more reliable
+              "jekyll-minimal-root")
+                # Approach 1: Use jekyll/minimal as root, then fix permissions
                 docker run \
                   --rm \
-                  --user $(id -u):$(id -g) \
                   --volume="${{ github.workspace }}:/srv/jekyll" \
-                  --volume="${{ github.workspace }}/_site:/srv/jekyll/_site" \
                   jekyll/minimal:latest \
-                  /bin/bash -c "chmod 755 /srv/jekyll && cd /srv/jekyll && jekyll build"
-                ;;
-                
-              "jekyll-builder-fixed")
-                # Approach 2: Use jekyll/builder with explicit path and bundle install
-                docker run \
-                  --rm \
-                  --user $(id -u):$(id -g) \
-                  --volume="${{ github.workspace }}:/srv/jekyll" \
-                  --volume="${{ github.workspace }}/_site:/srv/jekyll/_site" \
-                  jekyll/builder:latest \
                   /bin/bash -c "
-                    chmod 755 /srv/jekyll && 
                     cd /srv/jekyll && 
                     bundle install --retry 3 && 
-                    bundle exec jekyll build
+                    bundle exec jekyll build &&
+                    chmod -R 755 /srv/jekyll/_site
                   "
                 ;;
                 
-              "ruby-custom")
-                # Approach 3: Use Ruby base image and install Jekyll manually
+              "jekyll-builder-root")
+                # Approach 2: Use jekyll/builder as root
                 docker run \
                   --rm \
-                  --user $(id -u):$(id -g) \
                   --volume="${{ github.workspace }}:/srv/jekyll" \
-                  --volume="${{ github.workspace }}/_site:/srv/jekyll/_site" \
+                  jekyll/builder:latest \
+                  /bin/bash -c "
+                    cd /srv/jekyll && 
+                    bundle install --retry 3 && 
+                    bundle exec jekyll build &&
+                    chmod -R 755 /srv/jekyll/_site
+                  "
+                ;;
+                
+              "ruby-root")
+                # Approach 3: Use Ruby base image as root
+                docker run \
+                  --rm \
+                  --volume="${{ github.workspace }}:/srv/jekyll" \
                   ruby:3.1 \
                   /bin/bash -c "
                     cd /srv/jekyll &&
                     gem install bundler jekyll &&
                     bundle install --retry 3 &&
-                    bundle exec jekyll build
+                    bundle exec jekyll build &&
+                    chmod -R 755 /srv/jekyll/_site
                   "
                 ;;
                 
-              "ubuntu-native")
-                # Approach 4: Use Ubuntu and install Ruby/Jekyll natively
+              "ubuntu-root")
+                # Approach 4: Use Ubuntu as root
                 docker run \
                   --rm \
-                  --user $(id -u):$(id -g) \
                   --volume="${{ github.workspace }}:/srv/jekyll" \
-                  --volume="${{ github.workspace }}/_site:/srv/jekyll/_site" \
                   ubuntu:22.04 \
                   /bin/bash -c "
                     apt-get update -qq &&
@@ -80,23 +78,41 @@ jobs:
                     cd /srv/jekyll &&
                     gem install bundler jekyll &&
                     bundle install --retry 3 &&
-                    bundle exec jekyll build
+                    bundle exec jekyll build &&
+                    chmod -R 755 /srv/jekyll/_site
                   "
+                ;;
+                
+              "github-action-native")
+                # Approach 5: Use GitHub Actions built-in Ruby (no Docker)
+                sudo apt-get update -qq
+                sudo apt-get install -y ruby-full build-essential zlib1g-dev
+                gem install bundler jekyll
+                bundle install --retry 3
+                bundle exec jekyll build
                 ;;
             esac
           }
           
           # Try different approaches in order of preference
-          approaches=("jekyll-minimal" "jekyll-builder-fixed" "ruby-custom" "ubuntu-native")
+          approaches=("github-action-native" "jekyll-minimal-root" "jekyll-builder-root" "ruby-root" "ubuntu-root")
           
           for approach in "${approaches[@]}"; do
             echo "=== Trying approach: $approach ==="
             if build_jekyll "$approach"; then
               echo "✅ Success with approach: $approach"
+              
+              # Fix permissions for Docker approaches
+              if [[ "$approach" != "github-action-native" ]]; then
+                echo "Fixing file permissions..."
+                sudo chown -R $(whoami):$(whoami) _site/ || true
+                sudo chmod -R 755 _site/ || true
+              fi
+              
               break
             else
-              echo "❌ Failed with approach: $approach"
-              if [ "$approach" != "ubuntu-native" ]; then
+              echo "❌ Failed with approach: $approach (Exit code: $?)"
+              if [ "$approach" != "ubuntu-root" ]; then
                 echo "Trying next approach..."
                 continue
               else
@@ -106,6 +122,21 @@ jobs:
             fi
           done
           
+      - name: Create Gemfile if missing
+        run: |
+          if [ ! -f "Gemfile" ]; then
+            echo "Creating basic Gemfile..."
+            cat > Gemfile << 'EOF'
+          source "https://rubygems.org"
+          gem "jekyll", "~> 4.3"
+          gem "webrick", "~> 1.7"
+          
+          group :jekyll_plugins do
+            gem "jekyll-feed", "~> 0.12"
+          end
+          EOF
+          fi
+          
       - name: Verify build output
         run: |
           if [ -d "_site" ] && [ "$(ls -A _site)" ]; then
@@ -113,6 +144,7 @@ jobs:
             ls -la _site/
           else
             echo "❌ Build failed - _site directory is empty or doesn't exist"
+            ls -la . || true
             exit 1
           fi
           
