@@ -1,4 +1,4 @@
-# GPU-Accelerated MediaPipe Pipeline: Comprehensive Architecture and Implementation
+# GPU-Accelerated MediaPipe Pipeline: Vulkan Interoperability
 
 ## Abstract
 
