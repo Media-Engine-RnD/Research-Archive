@@ -64,6 +64,15 @@
         "file": "Variable Bone Smoothing.md",
         "path": "{root_repo}/docs/Variable Bone Smoothing.md"
         }
-      }
+      },
+      {
+      "name": "GPU Mediapipe Architecture - Vulkan Interop.html",
+      "type": "file",
+      "path": "{root_repo}/pages/html/GPU Mediapipe Architecture - Vulkan Interop.html",
+      "reference": {
+        "file": "GPU Mediapipe Architecture - Vulkan Interop.md",
+        "path": "{root_repo}/docs/GPU Mediapipe Architecture - Vulkan Interop.md"
+        }
+      },
   ]
 }
